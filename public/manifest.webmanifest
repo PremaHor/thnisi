@@ -1,0 +1,40 @@
+{
+  "id": "/",
+  "name": "TrhniSi",
+  "short_name": "TrhniSi",
+  "description": "TrhniSi — objevuj a směňuj nabídky ve svém okolí.",
+  "lang": "cs",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "browser"],
+  "orientation": "portrait-primary",
+  "background_color": "#F7EDE2",
+  "theme_color": "#F6BD60",
+  "categories": ["shopping", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Objevovat",
+      "short_name": "Objevuj",
+      "description": "Prohlížet nabídky",
+      "url": "/",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    },
+    {
+      "name": "Nová nabídka",
+      "short_name": "Nová",
+      "description": "Vytvořit nabídku",
+      "url": "/create",
+      "icons": [{ "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+    }
+  ],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

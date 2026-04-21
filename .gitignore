@@ -1,0 +1,29 @@
+# Závislosti a build
+node_modules
+dist
+dist-ssr
+*.local
+
+# Lokální tajemství – NIKDY necommitovat
+.env
+.env.*.local
+!.env.example
+
+# Logy, OS, IDE
+*.log
+npm-debug.log*
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# Test / coverage
+coverage
+*.tsbuildinfo
+
+# Firebase (pokud byste přidali service account místně)
+*-firebase-adminsdk-*.json
+serviceAccountKey.json
+.firebase
+firebase-debug.log
+firestore-debug.log

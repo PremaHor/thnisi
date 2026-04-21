@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuthed() {
+      return request.auth != null;
+    }
+
+    function isInParticipants(ids) {
+      return isAuthed() && request.auth.uid in ids;
+    }
+
+    /** 1 = solo thread, 2 = dvou stran – žádné „přidání“ cizího UID později při update */
+    function validParticipantListOnCreate() {
+      let p = request.resource.data.participantIds;
+      return p is list
+        && p.size() > 0
+        && p.size() < 3
+        && isInParticipants(p);
+    }
+
+    function participantListUnchanged() {
+      return request.resource.data.participantIds == resource.data.participantIds;
+    }
+
+    function validMessageText() {
+      return request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 5000;
+    }
+
+    function validMessageCreate() {
+      return request.resource.data.keys().hasOnly(['senderId', 'text', 'createdAt'])
+        && request.resource.data.senderId == request.auth.uid
+        && validMessageText();
+    }
+
+    function chatForMessage() {
+      return get(/databases/$(database)/documents/chats/$(chatId)).data;
+    }
+
+    match /chats/{chatId} {
+      allow read: if isInParticipants(resource.data.participantIds);
+      allow create: if validParticipantListOnCreate();
+      allow update: if isInParticipants(resource.data.participantIds)
+        && participantListUnchanged();
+      allow delete: if false;
+
+      match /messages/{msgId} {
+        allow read: if isInParticipants(chatForMessage().participantIds);
+        allow create: if isInParticipants(chatForMessage().participantIds)
+          && validMessageCreate();
+        allow update, delete: if false;
+      }
+    }
+  }
+}

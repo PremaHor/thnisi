@@ -1,0 +1,336 @@
+@custom-variant dark (&:is(.dark *));
+
+/* Fonty (stejné jako v @theme — pro h1 v @layer base) */
+:root {
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Baloo 2", "Nunito", system-ui, sans-serif;
+}
+
+/*
+  Kontrast (WCAG 2.1): běžný text 4,5:1, velký text 3:1, ne-textová UI (ohraničení, ikony) 3:1.
+  Odkazy a doplňkový text: --link / --ink-muted; primární plň zůstává Honey Bronze s tmavým popředím.
+*/
+
+/*
+  Paleta (5 odstínů)
+  Honey Bronze #F6BD60 · Linen #F7EDE2 · Cotton Rose #F5CAC3
+  Muted Teal #84A59D · Light Coral #F28482
+*/
+:root {
+  --honey-bronze: #f6bd60;
+  --linen: #f7ede2;
+  --cotton-rose: #f5cac3;
+  --muted-teal: #84a59d;
+  --light-coral: #f28482;
+
+  /* Text na světlém podkladu (párový k Linen, mimo 5× paletu kvůli kontrastu) */
+  --ink: #2a2623;
+  --ink-muted: #5c5651;
+
+  /* Plochy z color-mix pro odznaky / jemné pozadí */
+  --surface-teal-soft: color-mix(in srgb, var(--muted-teal) 24%, var(--linen));
+  --surface-honey-soft: color-mix(in srgb, var(--honey-bronze) 32%, var(--linen));
+  --surface-coral-soft: color-mix(in srgb, var(--light-coral) 24%, var(--linen));
+  --surface-rose-soft: color-mix(in srgb, var(--cotton-rose) 55%, var(--linen));
+
+  --on-teal: #3d4a46;
+  --on-honey: #5a4a22;
+  --on-coral: #8a413f;
+  /* Odkazy v textu (4.5:1 k Linen) — nikoliv plná Honey Bronze pro výplň tlačítek */
+  --link: #5a3d14;
+  --link-hover: #3d2a0e;
+  --stamp-coral: color-mix(in srgb, var(--light-coral) 55%, #1a0a0a 45%);
+}
+
+/* Sémantika — light */
+:root {
+  --font-size: 16px;
+  --background: var(--linen);
+  --foreground: var(--ink);
+  --card: #fdf9f4;
+  --card-foreground: var(--ink);
+  --popover: #fefcf9;
+  --popover-foreground: var(--ink);
+  --primary: var(--honey-bronze);
+  /* 10:1+ proti --primary; plné bílá na syté destructive (6:1+) */
+  --primary-foreground: #1c1916;
+  --secondary: var(--cotton-rose);
+  --secondary-foreground: var(--ink);
+  --muted: var(--surface-rose-soft);
+  --muted-foreground: var(--ink-muted);
+  --accent: color-mix(in srgb, var(--muted-teal) 16%, var(--linen));
+  --accent-foreground: var(--ink);
+  --destructive: #a53f3c;
+  --destructive-foreground: #ffffff;
+  /* Hraniční prvky: min. 3:1 (WCAG 1.4.11) oproti Linen / kartě — tužší obrys = cartoon */
+  --border: #6b5c52;
+  --input: color-mix(in srgb, var(--cotton-rose) 35%, var(--linen));
+  --input-background: #fefbf7;
+  --switch-background: color-mix(in srgb, var(--muted-teal) 45%, #d8d8d8);
+  --font-weight-medium: 500;
+  --font-weight-normal: 400;
+  /* Fokus: ≥3:1 k pozadí (ne čistá muted-teal, která na Linen nepadá) */
+  --ring: #3d524c;
+  --chart-1: var(--honey-bronze);
+  --chart-2: var(--muted-teal);
+  --chart-3: var(--light-coral);
+  --chart-4: var(--cotton-rose);
+  --chart-5: color-mix(in srgb, var(--linen) 15%, #8a826d);
+  /* Větší zaoblení + „komiksový“ posunutý stín */
+  --radius: 1.5rem;
+  --shadow-cartoon-color: #2c2620;
+  /* Fixní prvky nad spodní PWA navigací (výška lišty + safe area) */
+  --app-bottom-nav: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+  --sidebar: var(--surface-rose-soft);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--honey-bronze);
+  --sidebar-primary-foreground: #1c1916;
+  --sidebar-accent: var(--cotton-rose);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+
+/* Dark — teplé tmavé zelenkavošedé, akcenty ze stejné palety */
+.dark {
+  --link: #f0d4a0;
+  --link-hover: #f6bd60;
+  --background: color-mix(in srgb, #121211 86%, var(--muted-teal) 14%);
+  --foreground: var(--linen);
+  --card: color-mix(in srgb, #1a1c1b 88%, var(--muted-teal) 12%);
+  --card-foreground: var(--linen);
+  --popover: #1d211f;
+  --popover-foreground: var(--linen);
+  --primary: var(--honey-bronze);
+  --primary-foreground: #1a1410;
+  --secondary: #2a302e;
+  --secondary-foreground: var(--linen);
+  --muted: #2a312f;
+  --muted-foreground: color-mix(in srgb, var(--linen) 72%, var(--muted-teal) 28%);
+  --accent: #323a38;
+  --accent-foreground: var(--linen);
+  --destructive: #a53f3c;
+  --destructive-foreground: #ffffff;
+  --border: #333b39;
+  --input: #2c3330;
+  --input-background: #1e2321;
+  --switch-background: #3d4643;
+  --ring: var(--honey-bronze);
+  --chart-1: var(--honey-bronze);
+  --chart-2: #9ebdb5;
+  --chart-3: #f5a3a0;
+  --chart-4: #f0d0ca;
+  --chart-5: #c4beb4;
+  /* Světlý obrys stínu u tmavých ploch */
+  --shadow-cartoon-color: #8a7f72;
+  --sidebar: #1e2321;
+  --sidebar-foreground: var(--linen);
+  --sidebar-primary: var(--honey-bronze);
+  --sidebar-primary-foreground: #1a1410;
+  --sidebar-accent: #2a312f;
+  --sidebar-accent-foreground: var(--linen);
+  --sidebar-border: #333b39;
+  --sidebar-ring: var(--honey-bronze);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-input-background: var(--input-background);
+  --color-switch-background: var(--switch-background);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --color-honey-bronze: var(--honey-bronze);
+  --color-linen: var(--linen);
+  --color-cotton-rose: var(--cotton-rose);
+  --color-muted-teal: var(--muted-teal);
+  --color-light-coral: var(--light-coral);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-surface-teal-soft: var(--surface-teal-soft);
+  --color-surface-honey-soft: var(--surface-honey-soft);
+  --color-surface-coral-soft: var(--surface-coral-soft);
+  --color-surface-rose-soft: var(--surface-rose-soft);
+  --color-on-teal: var(--on-teal);
+  --color-on-honey: var(--on-honey);
+  --color-on-coral: var(--on-coral);
+  --color-stamp-coral: var(--stamp-coral);
+  --color-link: var(--link);
+  --color-link-hover: var(--link-hover);
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Baloo 2", "Nunito", system-ui, sans-serif;
+
+  --shadow-cartoon: 5px 5px 0 0 var(--shadow-cartoon-color);
+  --shadow-cartoon-sm: 3px 3px 0 0 var(--shadow-cartoon-color);
+  --shadow-cartoon-xs: 2px 2px 0 0 var(--shadow-cartoon-color);
+  --shadow-cartoon-lg: 7px 7px 0 0 var(--shadow-cartoon-color);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply overflow-x-hidden bg-background text-foreground font-sans antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+    background-color: var(--background);
+    /* Jemná „kreslená“ tečkovaná textura + stávající teplé skvrny */
+    background-image:
+      radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--ink) 6%, transparent) 1.2px, transparent 0),
+      radial-gradient(ellipse 120% 80% at 50% -30%, color-mix(in srgb, var(--honey-bronze) 24%, transparent), transparent 55%),
+      radial-gradient(ellipse 90% 60% at 100% 100%, color-mix(in srgb, var(--muted-teal) 14%, transparent), transparent 45%),
+      radial-gradient(ellipse 70% 50% at 0% 90%, color-mix(in srgb, var(--light-coral) 12%, transparent), transparent 40%);
+    background-size:
+      22px 22px,
+      auto,
+      auto,
+      auto;
+  }
+
+  html.dark body {
+    background-image:
+      radial-gradient(ellipse 100% 70% at 50% -20%, color-mix(in srgb, var(--honey-bronze) 15%, transparent), transparent 50%),
+      radial-gradient(ellipse 80% 50% at 80% 100%, color-mix(in srgb, var(--muted-teal) 18%, transparent), transparent 45%);
+  }
+
+  .pt-safe {
+    padding-top: max(1rem, env(safe-area-inset-top));
+  }
+
+  .pb-safe {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  .pl-safe {
+    padding-left: max(1rem, env(safe-area-inset-left));
+  }
+
+  .pr-safe {
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /*
+   * Mobile-first: výchozí styly = úzká obrazovka / dotyk. Rozšíření přes sm: (640px+), md:, lg:.
+   * --container-px: horizontální okraj pro obsah (8px mobil, větší na desktopu přes utilitu).
+   */
+  html {
+    font-size: var(--font-size);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  .app-container {
+    @apply mx-auto w-full min-w-0 max-w-2xl px-3 sm:px-4 lg:max-w-3xl;
+  }
+
+  .app-screen {
+    @apply flex min-h-dvh w-full min-w-0 flex-col bg-background;
+  }
+
+  .app-sticky-bottom {
+    @apply fixed left-0 right-0 z-20;
+    bottom: var(--app-bottom-nav);
+  }
+
+  /* Rychlejší odezva tapu na iOS (místo dvojkliku) */
+  button,
+  [role="button"],
+  a[href],
+  input[type="submit"],
+  label[for] {
+    touch-action: manipulation;
+  }
+
+  h1 {
+    font-family: var(--font-display, "Fredoka", "Nunito", sans-serif);
+    font-size: var(--text-2xl);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-family: var(--font-display, "Fredoka", "Nunito", sans-serif);
+    font-size: var(--text-xl);
+    font-weight: 700;
+    letter-spacing: 0.018em;
+    line-height: 1.25;
+  }
+
+  h3 {
+    font-family: var(--font-display, "Fredoka", "Nunito", sans-serif);
+    font-size: var(--text-lg);
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.3;
+  }
+
+  h4 {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  label {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  button {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-medium);
+    line-height: 1.5;
+  }
+
+  input {
+    font-size: var(--text-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+  }
+}
