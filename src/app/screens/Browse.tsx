@@ -144,12 +144,19 @@ export function Browse() {
       />
 
       {/* Header */}
-      <div className="sticky top-0 z-20 border-b border-border bg-background/95 px-2 pt-safe backdrop-blur-md">
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 px-3 pt-safe backdrop-blur-md sm:px-4">
         <div className="py-2 sm:py-3">
-          <div className="mb-2">
-            <div className="mb-1.5 flex items-center justify-between gap-2">
-              <AppLogo to="/" size="lg" />
-              {/* Location filter button */}
+          <div className="flex items-center justify-between gap-2 pb-2 sm:pb-3">
+            <AppLogo to="/" size="md" />
+            <div className="flex items-center gap-2">
+              {total > 0 && !sessionComplete && (
+                <span
+                  className="hidden shrink-0 text-xs font-medium tabular-nums text-muted-foreground sm:inline"
+                  aria-hidden
+                >
+                  {currentIndex + 1} / {total}
+                </span>
+              )}
               <button
                 type="button"
                 onClick={() => setShowLocationModal(true)}
@@ -172,21 +179,10 @@ export function Browse() {
                 )}
               </button>
             </div>
-            <h1 className="text-balance text-[clamp(1.2rem,calc(4.5vw+0.3rem),1.625rem)] font-bold leading-[1.3] tracking-tight text-foreground">
-              Co dnes hledáš?
-            </h1>
-            {total > 0 && !sessionComplete && (
-              <p
-                className="mt-0.5 text-xs font-medium text-muted-foreground"
-                aria-hidden
-              >
-                {currentIndex + 1} / {total} v tomhle filtru
-              </p>
-            )}
           </div>
 
           <div
-            className="-mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto border-b border-border px-2 pb-0 scrollbar-hide"
+            className="-mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 scrollbar-hide sm:-mx-4 sm:px-4"
             role="group"
             aria-label="Filtrovat podle kategorie"
           >
@@ -198,7 +194,7 @@ export function Browse() {
                   type="button"
                   onClick={() => selectCategory(cat)}
                   aria-pressed={selected}
-                  className={`min-h-[44px] shrink-0 snap-start border-b-2 px-1 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] sm:min-h-[48px] sm:py-2.5 sm:text-base ${
+                  className={`min-h-[40px] shrink-0 snap-start border-b-2 px-1 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] sm:min-h-[44px] sm:py-2.5 sm:text-base ${
                     selected
                       ? "border-foreground text-foreground"
                       : "border-transparent text-muted-foreground hover:text-foreground"
@@ -212,7 +208,7 @@ export function Browse() {
         </div>
       </div>
 
-      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2 pt-2 sm:px-4 sm:pb-3 sm:pt-3">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4 sm:pb-3 sm:pt-3">
         {filteredOffers.length === 0 ? (
           <div className="flex h-full min-h-[40vh] flex-col items-center justify-center px-2 text-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[14px] border border-dashed border-border bg-muted">
@@ -279,8 +275,8 @@ export function Browse() {
       </div>
 
       {/* Action bar */}
-      <div className="shrink-0 border-t border-border bg-background/95 px-2 py-2 sm:py-3 backdrop-blur-md">
-        <div className="mx-auto flex w-full min-w-0 max-w-md flex-wrap items-center justify-center gap-2 sm:max-w-lg sm:gap-4">
+      <div className="shrink-0 border-t border-border bg-background/95 px-2 py-1.5 backdrop-blur-md sm:py-3">
+        <div className="mx-auto flex w-full min-w-0 max-w-md flex-nowrap items-center justify-center gap-2.5 sm:max-w-lg sm:gap-4">
           <button
             type="button"
             onClick={handleUndo}

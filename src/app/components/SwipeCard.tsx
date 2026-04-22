@@ -144,7 +144,7 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
         {/* pointer-events-none: tahy jdou na motion.div (Tinder swipe). Výjimky: pointer-events-auto. */}
         <div className="pointer-events-none flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-search-pill)] lg:flex-row">
           {/* ======== FOTKA ======== */}
-          <div className="relative min-h-0 w-full flex-[3] overflow-hidden rounded-t-2xl bg-muted sm:flex-[11] lg:w-auto lg:min-w-0 lg:flex-[13] lg:rounded-l-2xl lg:rounded-tr-none">
+          <div className="relative min-h-[160px] w-full flex-1 overflow-hidden rounded-t-2xl bg-muted sm:min-h-0 sm:flex-[11] lg:w-auto lg:min-w-0 lg:flex-[13] lg:rounded-l-2xl lg:rounded-tr-none">
             <ImageWithFallback
               src={offer.image}
               alt={offer.title}
@@ -197,14 +197,14 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
           </div>
 
           {/* ======== OBSAH ======== */}
-          <div className="flex min-h-0 min-w-0 flex-[2] flex-col gap-2 p-3 sm:flex-[9] sm:gap-3 sm:p-5 lg:flex-[10] lg:gap-4 lg:p-7 xl:p-8">
+          <div className="flex shrink-0 min-w-0 flex-col gap-1.5 p-2.5 sm:shrink sm:min-h-0 sm:flex-[9] sm:gap-3 sm:p-5 lg:flex-[10] lg:gap-4 lg:p-7 xl:p-8">
             {/* Titulek + místo */}
             <div className="min-w-0 shrink-0">
-              <h2 className="line-clamp-1 text-base font-semibold leading-tight text-foreground sm:line-clamp-2 sm:text-xl lg:text-[1.5rem] lg:leading-[1.2] lg:tracking-[-0.01em]">
+              <h2 className="line-clamp-1 text-[0.9375rem] font-semibold leading-tight text-foreground sm:line-clamp-2 sm:text-xl lg:text-[1.5rem] lg:leading-[1.2] lg:tracking-[-0.01em]">
                 {offer.title}
               </h2>
-              <div className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground sm:mt-1 sm:text-sm lg:mt-1.5 lg:gap-1.5 lg:text-[0.9375rem]">
-                <MapPin className="h-3.5 w-3.5 shrink-0 lg:h-4 lg:w-4" aria-hidden />
+              <div className="mt-0.5 flex items-center gap-1 text-[0.7rem] text-muted-foreground sm:mt-1 sm:text-sm lg:mt-1.5 lg:gap-1.5 lg:text-[0.9375rem]">
+                <MapPin className="h-3 w-3 shrink-0 sm:h-3.5 sm:w-3.5 lg:h-4 lg:w-4" aria-hidden />
                 <span className="line-clamp-1">{offer.location}</span>
               </div>
             </div>
@@ -226,36 +226,46 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
               )}
             </div>
 
-            {/* Mobile: rozklikávací karta s popisem */}
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMobileSheetOpen(true);
-              }}
-              className="pointer-events-auto flex min-h-[2.5rem] w-full shrink-0 items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98] sm:hidden"
-              aria-label="Zobrazit více informací"
-            >
-              <span className="line-clamp-1 flex-1">
-                {offer.description || "Zobrazit více informací"}
-              </span>
-              <Info className="h-4 w-4 shrink-0 text-primary" strokeWidth={2} aria-hidden />
-            </button>
+            {/* Mobile: kompaktní řádek prodejce + info tlačítko */}
+            <div className="flex shrink-0 items-center gap-2 sm:hidden">
+              <Avatar src={offer.seller.avatar} size="sm" className="shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold leading-tight text-foreground">
+                  {offer.seller.name}
+                </p>
+                <SellerRatingDisplay
+                  userKey={offer.sellerId}
+                  className="mt-0 text-[0.65rem]"
+                  size="sm"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMobileSheetOpen(true);
+                }}
+                className="pointer-events-auto flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92]"
+                aria-label="Zobrazit více informací"
+              >
+                <Info className="h-4 w-4 text-primary" strokeWidth={2} aria-hidden />
+              </button>
+            </div>
 
-            {/* Prodejce */}
-            <div className="flex min-w-0 shrink-0 items-center gap-2 border-t border-border pt-2 sm:gap-3 sm:pt-3 lg:gap-3.5 lg:pt-4">
+            {/* Prodejce (desktop / tablet ≥ sm) */}
+            <div className="hidden min-w-0 shrink-0 items-center gap-3 border-t border-border pt-3 sm:flex lg:gap-3.5 lg:pt-4">
               <Avatar src={offer.seller.avatar} size="sm" className="shrink-0 lg:hidden" />
               <Avatar src={offer.seller.avatar} size="md" className="hidden shrink-0 lg:block" />
               <div className="min-w-0 flex-1">
                 <p className="text-[0.65rem] font-medium uppercase tracking-[0.08em] text-muted-foreground lg:text-[0.7rem]">
                   Nabízí
                 </p>
-                <p className="truncate text-xs font-semibold leading-tight text-foreground sm:text-sm lg:text-[0.9375rem]">
+                <p className="truncate text-sm font-semibold leading-tight text-foreground lg:text-[0.9375rem]">
                   {offer.seller.name}
                 </p>
                 <SellerRatingDisplay
                   userKey={offer.sellerId}
-                  className="mt-0.5 text-[0.65rem] sm:text-xs"
+                  className="mt-0.5 text-xs"
                   size="sm"
                 />
               </div>
@@ -269,7 +279,7 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
                   e.stopPropagation();
                   onInfo();
                 }}
-                className="pointer-events-auto mt-auto flex min-h-11 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] lg:min-h-[3.25rem] lg:gap-2 lg:rounded-xl lg:text-base"
+                className="pointer-events-auto mt-auto flex min-h-10 w-full shrink-0 items-center justify-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] sm:min-h-11 sm:py-2.5 lg:min-h-[3.25rem] lg:gap-2 lg:rounded-xl lg:text-base"
               >
                 Zobrazit detail
                 <ChevronRight className="h-4 w-4 shrink-0 lg:h-5 lg:w-5" aria-hidden />
