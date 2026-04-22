@@ -1,10 +1,11 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useCallback, forwardRef, useImperativeHandle } from "react";
 import {
   motion,
   useMotionValue,
   useTransform,
   PanInfo,
   animate,
+  type Transition,
 } from "motion/react";
 import { MapPin, Heart, X, ChevronRight, Info } from "lucide-react";
 import { Badge } from "./Badge";
@@ -34,10 +35,33 @@ interface SwipeCardProps {
   distanceKm?: number;
 }
 
+export interface SwipeCardHandle {
+  /** Stejná animace jako při dokončeném swipu — pro tlačítka v liště. */
+  swipe: (direction: "left" | "right") => Promise<void>;
+}
+
 const EXIT_X = 520;
 const EXIT_X_REDUCED = 120;
 const OFFSET_THRESHOLD = 100;
 const VELOCITY_THRESHOLD = 500;
+
+const stackTransition: Transition = {
+  type: "spring",
+  stiffness: 320,
+  damping: 32,
+  mass: 0.85,
+};
+
+const stackTransitionReduced: Transition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
+
+const exitTransition: Transition = {
+  type: "spring",
+  stiffness: 340,
+  damping: 36,
+  mass: 0.9,
+};
+
+const exitTransitionReduced: Transition = { duration: 0.22, ease: [0.22, 1, 0.36, 1] };
 
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
@@ -51,12 +75,16 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
-export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: SwipeCardProps) {
+export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
+  { offer, onSwipe, stackIndex, onInfo, distanceKm },
+  ref,
+) {
   const cardRef = useRef<HTMLDivElement>(null);
   const reduceMotion = usePrefersReducedMotion();
   const exitX = reduceMotion ? EXIT_X_REDUCED : EXIT_X;
   const x = useMotionValue(0);
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false);
+  const exitInProgress = useRef(false);
 
   const rotate = useTransform(
     x,
@@ -65,17 +93,47 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
   );
   const opacity = useTransform(x, [-300, -150, 0, 150, 300], [0, 1, 1, 1, 0]);
 
-  const likeOpacity = useTransform(x, [0, 90], [0, 1]);
-  const nopeOpacity = useTransform(x, [-90, 0], [1, 0]);
+  /* Kratší rozsah = razítka viditelná dřív (mobil, kratší tahy). */
+  const likeOpacity = useTransform(x, [0, 48], [0, 1]);
+  const nopeOpacity = useTransform(x, [-48, 0], [1, 0]);
   const likeScale = useTransform(
     x,
-    [0, 120],
+    [0, 72],
     reduceMotion ? [1, 1] : [0.82, 1.12],
   );
   const nopeScale = useTransform(
     x,
-    [-120, 0],
+    [-72, 0],
     reduceMotion ? [1, 1] : [1.12, 0.82],
+  );
+
+  const runExitSwipe = useCallback(
+    (direction: "left" | "right") => {
+      if (!onSwipe || exitInProgress.current) return Promise.resolve();
+      exitInProgress.current = true;
+      const target = direction === "right" ? exitX : -exitX;
+      const transition = reduceMotion ? exitTransitionReduced : exitTransition;
+      return animate(x, target, transition)
+        .then(() => {
+          onSwipe(direction);
+          x.set(0);
+        })
+        .finally(() => {
+          exitInProgress.current = false;
+        });
+    },
+    [onSwipe, exitX, reduceMotion, x],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      swipe: (direction: "left" | "right") => {
+        if (stackIndex !== 0) return Promise.resolve();
+        return runExitSwipe(direction);
+      },
+    }),
+    [stackIndex, runExitSwipe],
   );
 
   const handleDragEnd = (_event: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
@@ -88,19 +146,9 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
       ox < -OFFSET_THRESHOLD || (ox < -40 && vx < -VELOCITY_THRESHOLD);
 
     if (swipeRight && onSwipe) {
-      animate(x, exitX, reduceMotion ? { duration: 0.15 } : { type: "spring", stiffness: 400, damping: 40 }).then(
-        () => {
-          onSwipe("right");
-          x.set(0);
-        },
-      );
+      void runExitSwipe("right");
     } else if (swipeLeft && onSwipe) {
-      animate(x, -exitX, reduceMotion ? { duration: 0.15 } : { type: "spring", stiffness: 400, damping: 40 }).then(
-        () => {
-          onSwipe("left");
-          x.set(0);
-        },
-      );
+      void runExitSwipe("left");
     } else {
       animate(x, 0, reduceMotion ? { duration: 0.12 } : { type: "spring", stiffness: 500, damping: 35 });
     }
@@ -113,6 +161,8 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
   const isDraggable = stackIndex === 0;
   const hasWants = !!offer.wantsInReturn?.trim();
 
+  const stackTr = reduceMotion ? stackTransitionReduced : stackTransition;
+
   return (
     <>
       <motion.div
@@ -120,10 +170,8 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
         className="absolute inset-0 cursor-grab touch-none select-none active:cursor-grabbing"
         style={{
           x: isDraggable ? x : 0,
-          y: yOffset,
           rotate: isDraggable ? rotate : 0,
           opacity: isDraggable ? opacity : 1,
-          scale,
           zIndex,
           touchAction: isDraggable ? "none" : undefined,
         }}
@@ -132,13 +180,20 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
         dragConstraints={{ left: -exitX, right: exitX }}
         dragElastic={0.85}
         onDragEnd={isDraggable ? handleDragEnd : undefined}
+        initial={
+          reduceMotion || stackIndex !== 2
+            ? false
+            : { scale: scale - 0.07, y: yOffset + 20, opacity: 0.75 }
+        }
         animate={{
           scale,
           y: yOffset,
+          opacity: 1,
         }}
         transition={{
-          scale: { duration: 0.2 },
-          y: { duration: 0.2 },
+          scale: stackTr,
+          y: stackTr,
+          opacity: stackTr,
         }}
       >
         {/* pointer-events-none: tahy jdou na motion.div (Tinder swipe). Výjimky: pointer-events-auto. */}
@@ -170,30 +225,6 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
                 </span>
               )}
             </div>
-
-            {/* Swipe overlays Ne/Líbí */}
-            {isDraggable && (
-              <>
-                <motion.div
-                  className="pointer-events-none absolute left-3 top-1/2 z-20 -translate-y-1/2 rounded-lg border border-border bg-background/95 px-2.5 py-1.5 text-destructive shadow-[var(--shadow-search-pill)] sm:left-4 sm:px-3 sm:py-2"
-                  style={{ opacity: nopeOpacity, scale: nopeScale }}
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-semibold sm:text-base">Ne</span>
-                    <X className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" strokeWidth={2.5} aria-hidden />
-                  </div>
-                </motion.div>
-                <motion.div
-                  className="pointer-events-none absolute right-3 top-1/2 z-20 -translate-y-1/2 rounded-lg border border-border bg-background/95 px-2.5 py-1.5 text-primary shadow-[var(--shadow-search-pill)] sm:right-4 sm:px-3 sm:py-2"
-                  style={{ opacity: likeOpacity, scale: likeScale }}
-                >
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm font-semibold sm:text-base">Líbí</span>
-                    <Heart className="h-4 w-4 shrink-0 fill-current sm:h-5 sm:w-5" aria-hidden />
-                  </div>
-                </motion.div>
-              </>
-            )}
           </div>
 
           {/* ======== OBSAH ======== */}
@@ -287,6 +318,30 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
             )}
           </div>
         </div>
+
+        {/* Swipe razítka Ne/Líbí — nad celou kartou (ne uvnitř overflow-hidden u fotky, spolehlivě na mobilu). */}
+        {isDraggable && (
+          <>
+            <motion.div
+              className="pointer-events-none absolute left-2 top-[42%] z-[25] -translate-y-1/2 rounded-lg border border-border bg-background/95 px-2.5 py-1.5 text-destructive shadow-[var(--shadow-search-pill)] sm:left-4 sm:top-1/2 sm:px-3 sm:py-2"
+              style={{ opacity: nopeOpacity, scale: nopeScale }}
+            >
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-semibold sm:text-base">Ne</span>
+                <X className="h-4 w-4 shrink-0 sm:h-5 sm:w-5" strokeWidth={2.5} aria-hidden />
+              </div>
+            </motion.div>
+            <motion.div
+              className="pointer-events-none absolute right-2 top-[42%] z-[25] -translate-y-1/2 rounded-lg border border-border bg-background/95 px-2.5 py-1.5 text-primary shadow-[var(--shadow-search-pill)] sm:right-4 sm:top-1/2 sm:px-3 sm:py-2"
+              style={{ opacity: likeOpacity, scale: likeScale }}
+            >
+              <div className="flex items-center gap-1">
+                <span className="text-sm font-semibold sm:text-base">Líbí</span>
+                <Heart className="h-4 w-4 shrink-0 fill-current sm:h-5 sm:w-5" aria-hidden />
+              </div>
+            </motion.div>
+          </>
+        )}
       </motion.div>
 
       {/* ======== MOBILNÍ BOTTOM SHEET (rozklik karty) ======== */}
@@ -304,7 +359,7 @@ export function SwipeCard({ offer, onSwipe, stackIndex, onInfo, distanceKm }: Sw
       )}
     </>
   );
-}
+});
 
 /* ======================================================================== */
 /*  MobileInfoSheet — spodní modální karta s plnou informací (jen mobil)     */

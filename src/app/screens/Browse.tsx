@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useNavigate, Link } from "react-router";
 import confetti from "canvas-confetti";
 import { Search, X, Heart, Info, RotateCcw, Sparkles, PartyPopper, MapPin } from "lucide-react";
-import { SwipeCard } from "../components/SwipeCard";
+import { SwipeCard, type SwipeCardHandle } from "../components/SwipeCard";
 import { AppLogo } from "../components/AppLogo";
 import { LocationFilterModal } from "../components/LocationFilterModal";
 import { SWIPE_OFFERS } from "../data/barterOffers";
@@ -11,6 +11,13 @@ import {
   loadLocationSettings,
   haversineKm,
 } from "../data/locationStore";
+import {
+  clearPassedIds,
+  loadLikedIds,
+  loadPassedIds,
+  saveLikedIds,
+  savePassedIds,
+} from "../data/swipePreferencesStore";
 
 const CATEGORIES = ["Vše", "Jídlo", "Služby", "Elektronika", "Ostatní"];
 
@@ -20,16 +27,20 @@ function hapticLight() {
   }
 }
 
+type SwipeAction = { direction: "left" | "right"; id: string };
+
 export function Browse() {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState("Vše");
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [sessionComplete, setSessionComplete] = useState(false);
+  const [passedIds, setPassedIds] = useState<string[]>(() => loadPassedIds());
+  const [likedIds, setLikedIds] = useState<string[]>(() => loadLikedIds());
+  const [swipeHistory, setSwipeHistory] = useState<SwipeAction[]>([]);
   const [locationSettings, setLocationSettings] = useState<LocationSettings>(() =>
     loadLocationSettings()
   );
   const [showLocationModal, setShowLocationModal] = useState(false);
   const announcerRef = useRef<HTMLDivElement>(null);
+  const topSwipeCardRef = useRef<SwipeCardHandle>(null);
 
   const locationActive = locationSettings.radiusKm > 0;
 
@@ -50,24 +61,32 @@ export function Browse() {
     return dist <= locationSettings.radiusKm;
   });
 
+  const passedSet = useMemo(() => new Set(passedIds), [passedIds]);
+  const likedSet = useMemo(() => new Set(likedIds), [likedIds]);
+
+  const deckOffers = useMemo(
+    () =>
+      filteredOffers.filter((offer) => !passedSet.has(offer.id) && !likedSet.has(offer.id)),
+    [filteredOffers, passedSet, likedSet]
+  );
+
   const getDistanceKm = (offer: (typeof SWIPE_OFFERS)[number]): number | undefined => {
     if (!locationActive || offer.isRemote || offer.lat == null || offer.lng == null)
       return undefined;
     return haversineKm(locationSettings.lat, locationSettings.lng, offer.lat, offer.lng);
   };
 
-  const currentOffer = filteredOffers[currentIndex];
-  const total = filteredOffers.length;
+  const currentOffer = deckOffers[0];
+  const totalInDeck = deckOffers.length;
+  const atEnd = filteredOffers.length > 0 && deckOffers.length === 0;
   const positionLabel =
-    total > 0 && !sessionComplete
-      ? `Karta ${currentIndex + 1} z ${total}. ${currentOffer?.title ?? ""}.`
-      : "";
+    totalInDeck > 0 && !atEnd ? `Karta 1 z ${totalInDeck}. ${currentOffer?.title ?? ""}.` : "";
 
   useEffect(() => {
     if (announcerRef.current && positionLabel) {
       announcerRef.current.textContent = positionLabel;
     }
-  }, [positionLabel, currentIndex, sessionComplete]);
+  }, [positionLabel, atEnd, totalInDeck]);
 
   const fireConfetti = useCallback(() => {
     if (typeof window === "undefined") return;
@@ -82,44 +101,67 @@ export function Browse() {
     });
   }, []);
 
-  useEffect(() => {
-    if (!sessionComplete) return;
-    const t = window.setTimeout(fireConfetti, 200);
-    return () => clearTimeout(t);
-  }, [sessionComplete, fireConfetti]);
-
   const selectCategory = (cat: string) => {
     setSelectedCategory(cat);
-    setCurrentIndex(0);
-    setSessionComplete(false);
   };
 
   const handleLocationChange = (s: LocationSettings) => {
     setLocationSettings(s);
-    setCurrentIndex(0);
-    setSessionComplete(false);
   };
 
-  const handleSwipe = (_direction: "left" | "right") => {
-    if (!currentOffer || sessionComplete) return;
+  const handleSwipe = (direction: "left" | "right") => {
+    const top = deckOffers[0];
+    if (!top || atEnd) return;
     hapticLight();
 
-    if (currentIndex < filteredOffers.length - 1) {
-      setCurrentIndex((i) => i + 1);
+    const willEmptyDeck = deckOffers.length === 1;
+
+    if (direction === "left") {
+      setPassedIds((a) => {
+        if (a.includes(top.id)) return a;
+        const n = [...a, top.id];
+        savePassedIds(n);
+        return n;
+      });
     } else {
-      setSessionComplete(true);
+      setLikedIds((a) => {
+        const without = a.filter((id) => id !== top.id);
+        const n = [...without, top.id];
+        saveLikedIds(n);
+        return n;
+      });
+    }
+
+    setSwipeHistory((h) => [...h, { direction, id: top.id }]);
+
+    if (willEmptyDeck) {
+      window.setTimeout(fireConfetti, 200);
     }
   };
 
   const handleUndo = () => {
-    if (sessionComplete) {
-      setSessionComplete(false);
-      setCurrentIndex(Math.max(0, filteredOffers.length - 1));
-      return;
-    }
-    if (currentIndex > 0) {
-      setCurrentIndex((i) => i - 1);
-    }
+    setSwipeHistory((hist) => {
+      if (hist.length === 0) return hist;
+      const last = hist[hist.length - 1];
+
+      if (last.direction === "left") {
+        setPassedIds((a) => {
+          const n = a.filter((id) => id !== last.id);
+          savePassedIds(n);
+          return n;
+        });
+      } else {
+        setLikedIds((a) => {
+          const i = a.lastIndexOf(last.id);
+          if (i < 0) return a;
+          const n = [...a.slice(0, i), ...a.slice(i + 1)];
+          saveLikedIds(n);
+          return n;
+        });
+      }
+
+      return hist.slice(0, -1);
+    });
   };
 
   const handleInfo = () => {
@@ -129,8 +171,9 @@ export function Browse() {
   };
 
   const restartSession = () => {
-    setCurrentIndex(0);
-    setSessionComplete(false);
+    clearPassedIds();
+    setPassedIds([]);
+    setSwipeHistory([]);
   };
 
   return (
@@ -149,14 +192,30 @@ export function Browse() {
           <div className="flex items-center justify-between gap-2 pb-2 sm:pb-3">
             <AppLogo to="/" size="md" />
             <div className="flex items-center gap-2">
-              {total > 0 && !sessionComplete && (
+              {totalInDeck > 0 && !atEnd && (
                 <span
                   className="hidden shrink-0 text-xs font-medium tabular-nums text-muted-foreground sm:inline"
                   aria-hidden
                 >
-                  {currentIndex + 1} / {total}
+                  1 / {totalInDeck}
                 </span>
               )}
+              <Link
+                to="/saved"
+                className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-[var(--shadow-search-pill)] transition-colors hover:border-foreground/25"
+                aria-label={
+                  likedIds.length
+                    ? `Uložené nabídky, ${likedIds.length}`
+                    : "Uložené nabídky"
+                }
+              >
+                <Heart className="h-4 w-4" fill={likedIds.length ? "currentColor" : "none"} strokeWidth={2} />
+                {likedIds.length > 0 && (
+                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold leading-none text-primary-foreground">
+                    {likedIds.length > 99 ? "99+" : likedIds.length}
+                  </span>
+                )}
+              </Link>
               <button
                 type="button"
                 onClick={() => setShowLocationModal(true)}
@@ -236,7 +295,7 @@ export function Browse() {
               </button>
             )}
           </div>
-        ) : sessionComplete ? (
+        ) : atEnd ? (
           <div className="flex h-full min-h-[50vh] flex-col items-center justify-center px-2 text-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted text-foreground">
               <div className="relative">
@@ -248,21 +307,30 @@ export function Browse() {
               Hotovo!
             </h2>
             <p className="mb-6 max-w-sm text-pretty text-muted-foreground">
-              Chtel bys couvet, nebo stejnou jizdu znovu od prvni karty? Ty volis.
+              Přehlédnuté už se neukazují; líbící se najdeš v Uložených. Chceš znovu projít odmítnuté?
             </p>
-            <button
-              type="button"
-              onClick={restartSession}
-              className="min-h-12 rounded-lg bg-primary px-8 text-base font-medium text-primary-foreground transition active:scale-[0.92] hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              Jdeme znovu
-            </button>
+            <div className="flex flex-col items-center gap-3 sm:flex-row sm:gap-4">
+              <Link
+                to="/saved"
+                className="inline-flex min-h-12 items-center justify-center rounded-lg border border-border bg-background px-8 text-base font-medium text-foreground transition active:scale-[0.92] hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Uložené
+              </Link>
+              <button
+                type="button"
+                onClick={restartSession}
+                className="min-h-12 rounded-lg bg-primary px-8 text-base font-medium text-primary-foreground transition active:scale-[0.92] hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                Jdeme znovu
+              </button>
+            </div>
           </div>
         ) : (
           <div className="relative mx-auto flex min-h-0 min-w-0 w-full max-w-sm flex-1 touch-none sm:max-w-md md:max-w-2xl lg:my-auto lg:max-h-[560px] lg:max-w-4xl xl:max-h-[620px] xl:max-w-5xl">
-            {filteredOffers.slice(currentIndex, currentIndex + 3).map((offer, index) => (
+            {deckOffers.slice(0, 3).map((offer, index) => (
               <SwipeCard
-                key={`${offer.id}-${currentIndex + index}`}
+                key={offer.id}
+                ref={index === 0 ? topSwipeCardRef : undefined}
                 offer={offer}
                 onSwipe={index === 0 ? handleSwipe : undefined}
                 stackIndex={index}
@@ -280,7 +348,7 @@ export function Browse() {
           <button
             type="button"
             onClick={handleUndo}
-            disabled={!sessionComplete && currentIndex === 0}
+            disabled={swipeHistory.length === 0}
             aria-label="Zpet na predchozi kartu"
             className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-11 sm:min-w-11"
           >
@@ -289,8 +357,8 @@ export function Browse() {
 
           <button
             type="button"
-            onClick={() => handleSwipe("left")}
-            disabled={!currentOffer || sessionComplete}
+            onClick={() => void topSwipeCardRef.current?.swipe("left")}
+            disabled={!currentOffer || atEnd}
             aria-label="Nechci tuto nabidku"
             className="flex min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-full bg-icon-well text-destructive transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-14 sm:min-w-14"
           >
@@ -300,7 +368,7 @@ export function Browse() {
           <button
             type="button"
             onClick={handleInfo}
-            disabled={!currentOffer || sessionComplete}
+            disabled={!currentOffer || atEnd}
             aria-label="Detail nabidky"
             className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-11 sm:min-w-11"
           >
@@ -309,8 +377,8 @@ export function Browse() {
 
           <button
             type="button"
-            onClick={() => handleSwipe("right")}
-            disabled={!currentOffer || sessionComplete}
+            onClick={() => void topSwipeCardRef.current?.swipe("right")}
+            disabled={!currentOffer || atEnd}
             aria-label="Libi se mi"
             className="flex min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-14 sm:min-w-14"
           >

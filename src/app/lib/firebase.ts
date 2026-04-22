@@ -1,6 +1,7 @@
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
 import { getFirestore, type Firestore } from "firebase/firestore";
 import { getAuth, type Auth } from "firebase/auth";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const apiKey = import.meta.env.VITE_FIREBASE_API_KEY;
 const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
@@ -18,6 +19,7 @@ export function isFirebaseConfigured(): boolean {
 let app: FirebaseApp | null = null;
 let firestore: Firestore | null = null;
 let auth: Auth | null = null;
+let storage: FirebaseStorage | null = null;
 
 function getConfig() {
   return {
@@ -60,4 +62,10 @@ export function getFirebaseAuth(): Auth {
   if (auth) return auth;
   auth = getAuth(getFirebaseApp());
   return auth;
+}
+
+export function getFirebaseStorage(): FirebaseStorage {
+  if (storage) return storage;
+  storage = getStorage(getFirebaseApp());
+  return storage;
 }

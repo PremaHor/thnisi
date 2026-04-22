@@ -53,5 +53,10 @@ service cloud.firestore {
         allow update, delete: if false;
       }
     }
+
+    /** Skrytí konverzace jen v mém seznamu (dokument v chats/ zůstává kvůli pravidlům zpráv). */
+    match /users/{userId}/hiddenChats/{chatId} {
+      allow read, write: if isAuthed() && request.auth.uid == userId;
+    }
   }
 }

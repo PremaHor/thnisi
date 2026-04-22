@@ -3,12 +3,9 @@ import { Edit2, Settings, LogOut, FileText, Shield } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { CURRENT_RATER_ID, getUserRatingSummary } from "../data/ratingsStore";
+import { loadUserProfile } from "../data/userProfileStore";
 
-const MOCK_USER = {
-  name: "Jan Novák",
-  email: "jan.novak@example.com",
-  bio: "Zahradničení a směna domácích dobrot",
-  location: "Praha, Česká republika",
+const MOCK_STATS = {
   completedTrades: 12,
   activeOffers: 3,
   memberSince: "leden 2026",
@@ -17,6 +14,7 @@ const MOCK_USER = {
 export function Profile() {
   const navigate = useNavigate();
   const ownRating = getUserRatingSummary(CURRENT_RATER_ID);
+  const user = loadUserProfile();
 
   return (
     <div className="app-screen">
@@ -29,11 +27,14 @@ export function Profile() {
       <div className="app-container space-y-6 py-6">
         {/* User info */}
         <div className="flex flex-col items-center text-center">
-          <Avatar size="xl" className="mb-4" />
-          <h2 className="mb-1">{MOCK_USER.name}</h2>
-          <p className="text-muted-foreground mb-1">{MOCK_USER.email}</p>
-          {MOCK_USER.bio && (
-            <p className="text-sm text-muted-foreground mb-3">{MOCK_USER.bio}</p>
+          <Avatar size="xl" className="mb-4" src={user.avatarUrl || undefined} />
+          <h2 className="mb-1">{user.name}</h2>
+          <p className="text-muted-foreground mb-1">{user.email}</p>
+          {user.location ? (
+            <p className="text-sm text-muted-foreground mb-1">{user.location}</p>
+          ) : null}
+          {user.bio && (
+            <p className="text-sm text-muted-foreground mb-3">{user.bio}</p>
           )}
           <Link to="/profile/edit">
             <Button variant="outline" size="sm">
@@ -46,11 +47,11 @@ export function Profile() {
         {/* Stats */}
         <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
-            <div className="mb-1">{MOCK_USER.completedTrades}</div>
+            <div className="mb-1">{MOCK_STATS.completedTrades}</div>
             <p className="text-xs text-muted-foreground">Dokončené směny</p>
           </div>
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
-            <div className="mb-1">{MOCK_USER.activeOffers}</div>
+            <div className="mb-1">{MOCK_STATS.activeOffers}</div>
             <p className="text-xs text-muted-foreground">Aktivní nabídky</p>
           </div>
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
@@ -85,10 +86,13 @@ export function Profile() {
             <span className="flex-1">Ochrana osobních údajů</span>
           </Link>
 
-          <button className="w-full flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg hover:bg-secondary transition-colors min-h-[56px]">
+          <Link
+            to="/settings"
+            className="flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg hover:bg-secondary transition-colors min-h-[56px]"
+          >
             <Settings className="w-5 h-5 text-muted-foreground" />
-            <span className="flex-1 text-left">Nastavení aplikace</span>
-          </button>
+            <span className="flex-1">Nastavení aplikace</span>
+          </Link>
 
           <button
             onClick={() => navigate("/sign-in")}
@@ -100,7 +104,7 @@ export function Profile() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          Členem od {MOCK_USER.memberSince}
+          Členem od {MOCK_STATS.memberSince}
         </p>
       </div>
     </div>

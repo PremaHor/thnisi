@@ -3,6 +3,7 @@ import { RootLayout } from "./layouts/RootLayout";
 import { SignIn } from "./screens/SignIn";
 import { SignUp } from "./screens/SignUp";
 import { Browse } from "./screens/Browse";
+import { SavedOffers } from "./screens/SavedOffers";
 import { OfferDetail } from "./screens/OfferDetail";
 import { CreateOffer } from "./screens/CreateOffer";
 import { MyOffers } from "./screens/MyOffers";
@@ -13,6 +14,7 @@ import { Profile } from "./screens/Profile";
 import { EditProfile } from "./screens/EditProfile";
 import { Terms } from "./screens/Terms";
 import { Privacy } from "./screens/Privacy";
+import { Settings } from "./screens/Settings";
 import { SellerProfile } from "./screens/SellerProfile";
 import { NotFound } from "./screens/NotFound";
 
@@ -22,6 +24,7 @@ export const router = createBrowserRouter([
     Component: RootLayout,
     children: [
       { index: true, Component: Browse },
+      { path: "saved", Component: SavedOffers },
       { path: "offer/:id", Component: OfferDetail },
       { path: "create", Component: CreateOffer },
       { path: "edit/:id", Component: CreateOffer },
@@ -34,6 +37,7 @@ export const router = createBrowserRouter([
       { path: "user/:sellerId", Component: SellerProfile },
       { path: "terms", Component: Terms },
       { path: "privacy", Component: Privacy },
+      { path: "settings", Component: Settings },
     ],
   },
   {

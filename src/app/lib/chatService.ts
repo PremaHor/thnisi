@@ -3,6 +3,7 @@ import {
   doc,
   addDoc,
   setDoc,
+  deleteDoc,
   onSnapshot,
   serverTimestamp,
   updateDoc,
@@ -16,6 +17,8 @@ import { getDb, isFirebaseConfigured } from "./firebase";
 
 const CHATS = "chats";
 const MESSAGES = "messages";
+const USERS = "users";
+const HIDDEN_CHATS = "hiddenChats";
 
 /** Shodné s max. délkou v firestore.rules (validMessageText) */
 export const MAX_MESSAGE_LENGTH = 5000;
@@ -58,6 +61,47 @@ function chatDocRef(db: ReturnType<typeof getDb>, chatId: string) {
 
 function messagesCol(db: ReturnType<typeof getDb>, chatId: string) {
   return collection(db, CHATS, chatId, MESSAGES);
+}
+
+function hiddenChatDocRef(db: ReturnType<typeof getDb>, userId: string, chatId: string) {
+  return doc(db, USERS, userId, HIDDEN_CHATS, chatId);
+}
+
+/** Skryje konverzaci jen v seznamu „Zprávy“ pro daného uživatele. */
+export async function hideChatFromInbox(userId: string, chatId: string): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  const db = getDb();
+  await setDoc(hiddenChatDocRef(db, userId, chatId), {
+    hiddenAt: serverTimestamp(),
+  });
+}
+
+/** Znovu zobrazí konverzaci v seznamu (např. po otevření vlákna). */
+export async function unhideChatFromInbox(userId: string, chatId: string): Promise<void> {
+  if (!isFirebaseConfigured()) return;
+  const db = getDb();
+  try {
+    await deleteDoc(hiddenChatDocRef(db, userId, chatId));
+  } catch {
+    /* dokument nemusel existovat */
+  }
+}
+
+export function subscribeHiddenChatIds(
+  userId: string,
+  onUpdate: (hiddenIds: Set<string>) => void,
+  onError?: (e: Error) => void
+): Unsubscribe | null {
+  if (!isFirebaseConfigured()) return null;
+  const db = getDb();
+  const colRef = collection(db, USERS, userId, HIDDEN_CHATS);
+  return onSnapshot(
+    colRef,
+    (snap) => {
+      onUpdate(new Set(snap.docs.map((d) => d.id)));
+    },
+    (err) => onError?.(err as Error)
+  );
 }
 
 export function subscribeChats(

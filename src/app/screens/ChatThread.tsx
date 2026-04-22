@@ -9,6 +9,7 @@ import {
   subscribeMessages,
   sendTextMessage,
   ensureChatForOfferContext,
+  unhideChatFromInbox,
 } from "../lib/chatService";
 import { isFirebaseConfigured } from "../lib/firebase";
 
@@ -55,7 +56,9 @@ export function ChatThread() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [otherName, setOtherName] = useState("Načítám…");
   const [msgError, setMsgError] = useState<Error | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
+  /** Při čtení historie nespouštět auto-scroll dolů při každém snapshotu. */
+  const stickToBottomRef = useRef(true);
 
   const isFirebase = configured && isFirebaseConfigured();
 
@@ -64,9 +67,29 @@ export function ChatThread() {
     { id: string; text: string; me: boolean; timeLabel: string }[]
   >([]);
 
-  const scrollBottom = useCallback(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  const scrollMessagesToBottom = useCallback((behavior: ScrollBehavior = "auto") => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
   }, []);
+
+  const onMessagesScroll = useCallback(() => {
+    const el = messagesScrollRef.current;
+    if (!el) return;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    stickToBottomRef.current = distanceFromBottom < 96;
+  }, []);
+
+  useEffect(() => {
+    if (!chatId) return;
+    stickToBottomRef.current = true;
+    requestAnimationFrame(() => scrollMessagesToBottom("auto"));
+  }, [chatId, scrollMessagesToBottom]);
+
+  useEffect(() => {
+    if (!isFirebase || !user || !chatId) return;
+    void unhideChatFromInbox(user.uid, chatId);
+  }, [isFirebase, user, chatId]);
 
   // Vyřešit route (seller-X / přímé chatId) + příprava Firestore
   useEffect(() => {
@@ -136,14 +159,18 @@ export function ChatThread() {
           };
         });
         setFbMessages(rows);
-        setTimeout(scrollBottom, 50);
+        requestAnimationFrame(() => {
+          if (stickToBottomRef.current) {
+            scrollMessagesToBottom("auto");
+          }
+        });
       },
       (e) => setMsgError(e)
     );
     return () => {
       if (unsub) unsub();
     };
-  }, [isFirebase, user, chatId, scrollBottom]);
+  }, [isFirebase, user, chatId, scrollMessagesToBottom]);
 
   const handleSend = async () => {
     const t = message.trim();
@@ -153,7 +180,8 @@ export function ChatThread() {
         setMsgError(null);
         await sendTextMessage(chatId, user.uid, t);
         setMessage("");
-        scrollBottom();
+        stickToBottomRef.current = true;
+        requestAnimationFrame(() => scrollMessagesToBottom("smooth"));
       } catch (e) {
         setMsgError(e instanceof Error ? e : new Error(String(e)));
       }
@@ -166,7 +194,7 @@ export function ChatThread() {
   const showLoad = (authLoading || resolving) && isFirebase;
 
   return (
-    <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col bg-background">
+    <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-background">
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 pt-safe backdrop-blur">
         <div className="app-container flex items-center gap-3 py-3">
           <button
@@ -200,7 +228,11 @@ export function ChatThread() {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={messagesScrollRef}
+        onScroll={onMessagesScroll}
+        className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch]"
+      >
         <div className="app-container space-y-3 py-4 pb-28 sm:pb-32">
           {showLoad ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
@@ -257,7 +289,6 @@ export function ChatThread() {
               </div>
             ))
           )}
-          <div ref={endRef} />
         </div>
       </div>
 

@@ -1,3 +1,9 @@
+/** Příloha u nabídky (PDF nebo obrázek) — URL z úložiště nebo lokální náhled. */
+export type OfferAttachment = {
+  name: string;
+  url: string;
+};
+
 /** Veřejná data nabídek pro Objevuj / karty / detail. */
 export type BarterOfferPublic = {
   id: string;
@@ -7,6 +13,8 @@ export type BarterOfferPublic = {
   wantsInReturn: string;
   category: string;
   location: string;
+  /** Volitelné soubory (např. PDF katalog) vedle galerie fotek. */
+  attachments?: OfferAttachment[];
   /** Zeměpisná šířka místa předání/nabídky (WGS-84) */
   lat?: number;
   /** Zeměpisná délka místa předání/nabídky (WGS-84) */

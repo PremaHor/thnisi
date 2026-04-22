@@ -248,6 +248,15 @@
     display: none;
   }
 
+  html[data-reduce-motion="1"] *,
+  html[data-reduce-motion="1"] *::before,
+  html[data-reduce-motion="1"] *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+
   html {
     font-size: var(--font-size);
     -webkit-text-size-adjust: 100%;

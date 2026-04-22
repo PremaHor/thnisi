@@ -1,6 +1,6 @@
 import { useState, useLayoutEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router";
-import { ChevronLeft, MapPin, Tag, MessageCircle, Heart, Handshake } from "lucide-react";
+import { ChevronLeft, MapPin, Tag, MessageCircle, Heart, Handshake, Paperclip } from "lucide-react";
 import { Button } from "../components/Button";
 import { Badge } from "../components/Badge";
 import { Avatar } from "../components/Avatar";
@@ -8,7 +8,9 @@ import { Modal } from "../components/Modal";
 import { ImageWithFallback } from "../components/ImageWithFallback";
 import { BARTER_OFFERS, getBarterOfferById, type BarterOfferPublic } from "../data/barterOffers";
 import { loadUserOfferForm, mergeFormIntoPublicOffer } from "../data/userOfferForms";
+import { isOfferLiked, toggleLikedOfferId } from "../data/swipePreferencesStore";
 import { SellerRatingDisplay } from "../components/SellerRatingDisplay";
+import { cn } from "../components/ui/utils";
 
 export function OfferDetail() {
   const { id: routeId } = useParams();
@@ -16,6 +18,9 @@ export function OfferDetail() {
   const navigate = useNavigate();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showMatchModal, setShowMatchModal] = useState(false);
+  const [liked, setLiked] = useState(() =>
+    typeof window !== "undefined" ? isOfferLiked(id) : false,
+  );
   const [offer, setOffer] = useState<BarterOfferPublic>(
     () => getBarterOfferById(id) ?? BARTER_OFFERS[0]
   );
@@ -25,10 +30,18 @@ export function OfferDetail() {
     const f = loadUserOfferForm(id);
     setOffer(f ? mergeFormIntoPublicOffer(f, base) : base);
     setCurrentImageIndex(0);
+    setLiked(isOfferLiked(id));
   }, [id]);
 
   const handleRequestTrade = () => {
     setShowMatchModal(true);
+  };
+
+  const handleToggleLike = () => {
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      navigator.vibrate(10);
+    }
+    setLiked(toggleLikedOfferId(id));
   };
 
   return (
@@ -45,10 +58,22 @@ export function OfferDetail() {
           <h3 className="min-w-0 flex-1 line-clamp-1">Detail nabídky</h3>
           <button
             type="button"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted"
-            aria-label="Uložit do oblíbených"
+            onClick={handleToggleLike}
+            aria-pressed={liked}
+            aria-label={liked ? "Odebrat z oblíbených" : "Uložit do oblíbených"}
+            className={cn(
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+              liked
+                ? "bg-destructive/15 text-destructive hover:bg-destructive/25"
+                : "bg-icon-well text-foreground hover:bg-muted",
+            )}
           >
-            <Heart className="h-5 w-5" strokeWidth={2} />
+            <Heart
+              className="h-5 w-5"
+              strokeWidth={2}
+              fill={liked ? "currentColor" : "none"}
+              aria-hidden
+            />
           </button>
         </div>
       </div>
@@ -120,6 +145,30 @@ export function OfferDetail() {
                 <Badge key={tag}>{tag}</Badge>
               ))}
             </div>
+          </div>
+        )}
+
+        {offer.attachments && offer.attachments.length > 0 && (
+          <div>
+            <div className="mb-2 flex items-center gap-2">
+              <Paperclip className="h-4 w-4 text-muted-foreground" />
+              <h4>Přílohy</h4>
+            </div>
+            <ul className="space-y-2">
+              {offer.attachments.map((a) => (
+                <li key={a.url}>
+                  <a
+                    href={a.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex min-h-11 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-primary underline-offset-4 hover:underline"
+                  >
+                    <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                    <span className="shrink-0 text-muted-foreground">Otevřít</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 

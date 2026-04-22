@@ -1,11 +1,29 @@
-import type { BarterOfferPublic } from "./barterOffers";
+import type { BarterOfferPublic, OfferAttachment } from "./barterOffers";
 
 const STORAGE_PREFIX = "trhnisi:offerForm:v1:";
 
-/** Povolí jen http(s) – blokuje javascript:, data: atd. */
-function sanitizeImageUrl(url: string): string | null {
+const MAX_DATA_IMAGE_CHARS = 480_000;
+
+/** Povolí http(s) a lokální náhled obrázku (data:image/*) s limitem délky. */
+export function sanitizeImageUrl(url: string): string | null {
   const t = url.trim();
   if (!t) return null;
+  if (t.startsWith("data:")) {
+    const comma = t.indexOf(",");
+    if (comma < 12) return null;
+    const header = t.slice(5, comma).toLowerCase();
+    const mime = header.split(";")[0]?.trim() ?? "";
+    if (
+      mime !== "image/jpeg" &&
+      mime !== "image/png" &&
+      mime !== "image/webp" &&
+      mime !== "image/jpg"
+    ) {
+      return null;
+    }
+    if (t.length > MAX_DATA_IMAGE_CHARS) return null;
+    return t;
+  }
   let parsed: URL;
   try {
     parsed = new URL(t);
@@ -18,6 +36,15 @@ function sanitizeImageUrl(url: string): string | null {
   return t;
 }
 
+function sanitizeAttachmentUrl(url: string): OfferAttachment["url"] | null {
+  return sanitizeImageUrl(url);
+}
+
+function sanitizeAttachmentName(name: string): string {
+  const t = name.trim().slice(0, 200);
+  return t.replace(/[/\\]/g, "_") || "soubor";
+}
+
 export type UserOfferFormData = {
   title: string;
   description: string;
@@ -27,6 +54,7 @@ export type UserOfferFormData = {
   tags: string;
   location: string;
   images: string[];
+  attachments: OfferAttachment[];
 };
 
 const SEED: Record<string, UserOfferFormData> = {
@@ -43,6 +71,7 @@ const SEED: Record<string, UserOfferFormData> = {
       "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800",
       "https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?w=800",
     ],
+    attachments: [],
   },
   "2": {
     title: "Ruční keramika",
@@ -56,6 +85,7 @@ const SEED: Record<string, UserOfferFormData> = {
     images: [
       "https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=400",
     ],
+    attachments: [],
   },
 };
 
@@ -70,6 +100,22 @@ function parseStored(json: string | null): UserOfferFormData | null {
       return null;
     if (!Array.isArray(o.images) || !o.images.every((u) => typeof u === "string")) return null;
     const images = o.images.map((u) => sanitizeImageUrl(u)).filter((u): u is string => u != null);
+    let attachments: OfferAttachment[] = [];
+    if (Array.isArray(o.attachments)) {
+      attachments = o.attachments
+        .filter(
+          (a): a is Record<string, unknown> =>
+            Boolean(a) && typeof a === "object" && typeof (a as Record<string, unknown>).url === "string"
+        )
+        .map((a) => {
+          const url = sanitizeAttachmentUrl(String(a.url));
+          const name = sanitizeAttachmentName(
+            typeof a.name === "string" ? a.name : "soubor"
+          );
+          return url ? { name, url } : null;
+        })
+        .filter((x): x is OfferAttachment => x != null);
+    }
     return {
       title: o.title,
       description: o.description,
@@ -78,6 +124,7 @@ function parseStored(json: string | null): UserOfferFormData | null {
       tags: o.tags,
       location: o.location,
       images,
+      attachments,
     };
   } catch {
     return null;
@@ -95,10 +142,17 @@ export function loadUserOfferForm(offerId: string): UserOfferFormData | null {
 export function saveUserOfferForm(offerId: string, data: UserOfferFormData): void {
   if (typeof window === "undefined") return;
   const images = data.images.map((u) => sanitizeImageUrl(u)).filter((u): u is string => u != null);
+  const attachments = data.attachments
+    .map((a) => {
+      const url = sanitizeAttachmentUrl(a.url);
+      if (!url) return null;
+      return { name: sanitizeAttachmentName(a.name), url };
+    })
+    .filter((x): x is OfferAttachment => x != null);
   try {
     localStorage.setItem(
       STORAGE_PREFIX + offerId,
-      JSON.stringify({ ...data, images })
+      JSON.stringify({ ...data, images, attachments })
     );
   } catch {
     /* plný úložiště atd. */
@@ -118,6 +172,8 @@ export function mergeFormIntoPublicOffer(
     category: f.category,
     location: f.location,
     images: f.images,
+    image: f.images[0] ?? base.image,
+    attachments: f.attachments,
     tags: f.tags
       .split(",")
       .map((s) => s.trim())

@@ -1,11 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { MessageCircle, Loader2 } from "lucide-react";
+import { MessageCircle, Loader2, Trash2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cs } from "date-fns/locale";
 import { Avatar } from "../components/Avatar";
 import { useFirebase } from "../contexts/FirebaseContext";
-import { subscribeChats, type FirestoreChat } from "../lib/chatService";
+import {
+  subscribeChats,
+  subscribeHiddenChatIds,
+  hideChatFromInbox,
+  type FirestoreChat,
+} from "../lib/chatService";
 import { isFirebaseConfigured } from "../lib/firebase";
 
 function titleForList(c: FirestoreChat, myId: string) {
@@ -39,11 +44,25 @@ const MOCK_CHATS = [
   },
 ];
 
+const MOCK_HIDDEN_KEY = "barter:hiddenMockChats";
+
 export function Chats() {
   const { user, loading, configured } = useFirebase();
   const isFb = configured && isFirebaseConfigured();
   const [chats, setChats] = useState<FirestoreChat[]>([]);
+  const [hiddenChatIds, setHiddenChatIds] = useState<Set<string>>(() => new Set());
+  const [mockHiddenIds, setMockHiddenIds] = useState<Set<string>>(() => {
+    try {
+      const raw = localStorage.getItem(MOCK_HIDDEN_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw) as unknown;
+      return new Set(Array.isArray(arr) ? arr.filter((x) => typeof x === "string") : []);
+    } catch {
+      return new Set();
+    }
+  });
   const [err, setErr] = useState<Error | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isFb || !user) {
@@ -60,11 +79,35 @@ export function Chats() {
     };
   }, [isFb, user]);
 
+  useEffect(() => {
+    if (!isFb || !user) {
+      setHiddenChatIds(new Set());
+      return;
+    }
+    const unsub = subscribeHiddenChatIds(
+      user.uid,
+      (ids) => setHiddenChatIds(ids),
+      (e) => setErr(e)
+    );
+    return () => {
+      if (unsub) unsub();
+    };
+  }, [isFb, user]);
+
+  const persistMockHidden = useCallback((next: Set<string>) => {
+    try {
+      localStorage.setItem(MOCK_HIDDEN_KEY, JSON.stringify([...next]));
+    } catch {
+      /* ignore */
+    }
+    setMockHiddenIds(next);
+  }, []);
+
   const useMock = !isFb;
 
   const rows = useMemo(() => {
     if (useMock) {
-      return MOCK_CHATS.map((c) => ({
+      return MOCK_CHATS.filter((c) => !mockHiddenIds.has(c.id)).map((c) => ({
         href: `/chat/${c.id}` as const,
         name: c.user.name,
         last: c.lastMessage,
@@ -74,20 +117,46 @@ export function Chats() {
       }));
     }
     if (!user) return [];
-    return chats.map((c) => {
-      const t = c.lastMessageAt?.toDate();
-      return {
-        href: `/chat/${encodeURIComponent(c.id)}?name=${encodeURIComponent(titleForList(c, user.uid))}` as const,
-        name: titleForList(c, user.uid),
-        last: c.lastMessage || "—",
-        time: t
-          ? formatDistanceToNow(t, { addSuffix: true, locale: cs })
-          : "—",
-        unread: 0,
-        key: c.id,
-      };
-    });
-  }, [chats, useMock, user]);
+    return chats
+      .filter((c) => !hiddenChatIds.has(c.id))
+      .map((c) => {
+        const t = c.lastMessageAt?.toDate();
+        return {
+          href: `/chat/${encodeURIComponent(c.id)}?name=${encodeURIComponent(titleForList(c, user.uid))}` as const,
+          name: titleForList(c, user.uid),
+          last: c.lastMessage || "—",
+          time: t
+            ? formatDistanceToNow(t, { addSuffix: true, locale: cs })
+            : "—",
+          unread: 0,
+          key: c.id,
+        };
+      });
+  }, [chats, hiddenChatIds, mockHiddenIds, useMock, user]);
+
+  const removeChatFromList = useCallback(
+    async (chatId: string) => {
+      const ok = window.confirm(
+        "Odebrat konverzaci ze seznamu? Zprávy zůstanou uložené; po znovuotevření chatu z nabídky se může znovu objevit v seznamu."
+      );
+      if (!ok) return;
+      setRemovingId(chatId);
+      try {
+        if (useMock) {
+          const next = new Set(mockHiddenIds);
+          next.add(chatId);
+          persistMockHidden(next);
+        } else if (user) {
+          await hideChatFromInbox(user.uid, chatId);
+        }
+      } catch (e) {
+        setErr(e instanceof Error ? e : new Error(String(e)));
+      } finally {
+        setRemovingId(null);
+      }
+    },
+    [mockHiddenIds, persistMockHidden, useMock, user]
+  );
 
   return (
     <div className="app-screen">
@@ -115,44 +184,22 @@ export function Chats() {
       <div className="divide-y divide-border">
         {useMock && !loading
           ? rows.map((r) => (
-              <Link
+              <div
                 key={r.key}
-                to={r.href}
-                className="flex min-h-[72px] min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-secondary sm:px-4"
+                className="flex min-h-[72px] min-w-0 items-stretch gap-0 transition-colors hover:bg-secondary"
               >
-                <div className="relative">
-                  <Avatar size="lg" />
-                  {r.unread > 0 && (
-                    <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
-                      {r.unread}
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center justify-between">
-                    <h4 className="line-clamp-1">{r.name}</h4>
-                    <span className="ml-2 flex-shrink-0 text-xs text-muted-foreground">
-                      {r.time}
-                    </span>
-                  </div>
-                  <p
-                    className={`line-clamp-1 text-sm ${
-                      r.unread > 0 ? "text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {r.last}
-                  </p>
-                </div>
-              </Link>
-            ))
-          : isFb && !loading
-            ? rows.map((r) => (
                 <Link
-                  key={r.key}
                   to={r.href}
-                  className="flex min-h-[72px] min-w-0 items-center gap-3 px-3 py-3 transition-colors hover:bg-secondary sm:px-4"
+                  className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 sm:px-4"
                 >
-                  <Avatar size="lg" />
+                  <div className="relative">
+                    <Avatar size="lg" />
+                    {r.unread > 0 && (
+                      <div className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs text-destructive-foreground">
+                        {r.unread}
+                      </div>
+                    )}
+                  </div>
                   <div className="min-w-0 flex-1">
                     <div className="mb-1 flex items-center justify-between">
                       <h4 className="line-clamp-1">{r.name}</h4>
@@ -160,9 +207,71 @@ export function Chats() {
                         {r.time}
                       </span>
                     </div>
-                    <p className="line-clamp-1 text-sm text-muted-foreground">{r.last}</p>
+                    <p
+                      className={`line-clamp-1 text-sm ${
+                        r.unread > 0 ? "text-foreground" : "text-muted-foreground"
+                      }`}
+                    >
+                      {r.last}
+                    </p>
                   </div>
                 </Link>
+                <button
+                  type="button"
+                  disabled={removingId === r.key}
+                  aria-label="Odebrat konverzaci ze seznamu"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    void removeChatFromList(r.key);
+                  }}
+                  className="flex w-12 shrink-0 items-center justify-center border-l border-border text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                >
+                  {removingId === r.key ? (
+                    <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                  ) : (
+                    <Trash2 className="h-5 w-5" aria-hidden />
+                  )}
+                </button>
+              </div>
+            ))
+          : isFb && !loading
+            ? rows.map((r) => (
+                <div
+                  key={r.key}
+                  className="flex min-h-[72px] min-w-0 items-stretch gap-0 transition-colors hover:bg-secondary"
+                >
+                  <Link
+                    to={r.href}
+                    className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3 sm:px-4"
+                  >
+                    <Avatar size="lg" />
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex items-center justify-between">
+                        <h4 className="line-clamp-1">{r.name}</h4>
+                        <span className="ml-2 flex-shrink-0 text-xs text-muted-foreground">
+                          {r.time}
+                        </span>
+                      </div>
+                      <p className="line-clamp-1 text-sm text-muted-foreground">{r.last}</p>
+                    </div>
+                  </Link>
+                  <button
+                    type="button"
+                    disabled={removingId === r.key}
+                    aria-label="Odebrat konverzaci ze seznamu"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      void removeChatFromList(r.key);
+                    }}
+                    className="flex w-12 shrink-0 items-center justify-center border-l border-border text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                  >
+                    {removingId === r.key ? (
+                      <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="h-5 w-5" aria-hidden />
+                    )}
+                  </button>
+                </div>
               ))
             : null}
 

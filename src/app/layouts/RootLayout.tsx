@@ -3,7 +3,11 @@ import { Home, Plus, MessageCircle, ShoppingBag, User } from "lucide-react";
 
 function isNavActive(path: string, pathname: string): boolean {
   if (path === "/") {
-    return pathname === "/" || pathname.startsWith("/offer/");
+    return (
+      pathname === "/" ||
+      pathname === "/saved" ||
+      pathname.startsWith("/offer/")
+    );
   }
   if (path === "/chats") {
     return pathname === "/chats" || pathname.startsWith("/chat/");

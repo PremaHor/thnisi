@@ -1,17 +1,27 @@
-import { useState, useLayoutEffect } from "react";
+import { useState, useLayoutEffect, useRef } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ChevronLeft, Upload, X } from "lucide-react";
+import { ChevronLeft, Upload, X, Paperclip, FileText, Loader2 } from "lucide-react";
 import { loadUserOfferForm, saveUserOfferForm } from "../data/userOfferForms";
+import type { OfferAttachment } from "../data/barterOffers";
 import { Input } from "../components/Input";
 import { Textarea } from "../components/Textarea";
 import { Button } from "../components/Button";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { blobToDataUrl, compressImageToJpegBlob } from "../lib/imageCompress";
+import { canUseFirebaseUpload, uploadUserAsset } from "../lib/storageUpload";
 
 const CATEGORIES = ["Jídlo", "Služby", "Elektronika", "Ostatní"];
+const MAX_IMAGES = 5;
+const MAX_ATTACHMENTS = 4;
+const MAX_PDF_BYTES = 7 * 1024 * 1024;
 
 export function CreateOffer() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEditing = Boolean(id);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const attachInputRef = useRef<HTMLInputElement>(null);
+  const { user, loading: authLoading } = useFirebaseAuth();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -20,6 +30,11 @@ export function CreateOffer() {
   const [tags, setTags] = useState("");
   const [location, setLocation] = useState("");
   const [images, setImages] = useState<string[]>([]);
+  const [attachments, setAttachments] = useState<OfferAttachment[]>([]);
+  const [uploadBusy, setUploadBusy] = useState<"photo" | "attach" | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const storageFolder = id ?? "draft";
 
   useLayoutEffect(() => {
     if (!id) return;
@@ -32,7 +47,110 @@ export function CreateOffer() {
     setTags(data.tags);
     setLocation(data.location);
     setImages([...data.images]);
+    setAttachments([...(data.attachments ?? [])]);
   }, [id]);
+
+  async function addImageFromFile(file: File) {
+    setUploadError(null);
+    if (!file.type.startsWith("image/")) {
+      setUploadError("Vyberte obrázek (JPG, PNG…).");
+      return;
+    }
+    setUploadBusy("photo");
+    try {
+      const blob = await compressImageToJpegBlob(file);
+      let url: string;
+      if (canUseFirebaseUpload() && user?.uid) {
+        url = await uploadUserAsset({
+          userId: user.uid,
+          scope: `offers/${storageFolder}`,
+          file: blob,
+          contentType: "image/jpeg",
+        });
+      } else {
+        url = await blobToDataUrl(blob);
+      }
+      setImages((prev) => (prev.length < MAX_IMAGES ? [...prev, url] : prev));
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Nahrání fotky se nezdařilo.");
+    } finally {
+      setUploadBusy(null);
+    }
+  }
+
+  async function addAttachmentFromFile(file: File) {
+    setUploadError(null);
+    const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+    const isImage = file.type.startsWith("image/");
+    if (!isPdf && !isImage) {
+      setUploadError("Podporujeme PDF nebo obrázek.");
+      return;
+    }
+    if (isPdf && file.size > MAX_PDF_BYTES) {
+      setUploadError("PDF může mít nejvýše cca 7 MB.");
+      return;
+    }
+    if (isPdf && (!canUseFirebaseUpload() || !user?.uid)) {
+      setUploadError("PDF lze nahrát jen s nakonfigurovaným Firebase a přihlášením.");
+      return;
+    }
+    setUploadBusy("attach");
+    try {
+      let url: string;
+      if (isPdf && user?.uid) {
+        url = await uploadUserAsset({
+          userId: user.uid,
+          scope: `offers/${storageFolder}/attachments`,
+          file,
+          contentType: file.type || "application/pdf",
+        });
+      } else if (isImage) {
+        const blob = await compressImageToJpegBlob(file);
+        if (canUseFirebaseUpload() && user?.uid) {
+          url = await uploadUserAsset({
+            userId: user.uid,
+            scope: `offers/${storageFolder}/attachments`,
+            file: blob,
+            contentType: "image/jpeg",
+          });
+        } else {
+          url = await blobToDataUrl(blob);
+        }
+      } else {
+        return;
+      }
+      const name = file.name.trim() || (isPdf ? "dokument.pdf" : "soubor.jpg");
+      setAttachments((prev) =>
+        prev.length < MAX_ATTACHMENTS ? [...prev, { name, url }] : prev
+      );
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Nahrání přílohy se nezdařilo.");
+    } finally {
+      setUploadBusy(null);
+    }
+  }
+
+  const onPickPhotos: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const remaining = MAX_IMAGES - images.length;
+    const list = Array.from(files).slice(0, Math.max(0, remaining));
+    for (const f of list) {
+      await addImageFromFile(f);
+    }
+    e.target.value = "";
+  };
+
+  const onPickAttachments: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
+    const files = e.target.files;
+    if (!files?.length) return;
+    const remaining = MAX_ATTACHMENTS - attachments.length;
+    const list = Array.from(files).slice(0, Math.max(0, remaining));
+    for (const f of list) {
+      await addAttachmentFromFile(f);
+    }
+    e.target.value = "";
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,10 +163,13 @@ export function CreateOffer() {
         tags,
         location,
         images,
+        attachments,
       });
     }
     navigate("/my-offers");
   };
+
+  const busy = uploadBusy !== null || authLoading;
 
   return (
     <div className="app-screen">
@@ -68,6 +189,23 @@ export function CreateOffer() {
       </div>
 
       <form onSubmit={handleSubmit} className="app-container space-y-6 py-6">
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={onPickPhotos}
+        />
+        <input
+          ref={attachInputRef}
+          type="file"
+          accept="image/*,.pdf,application/pdf"
+          multiple
+          className="hidden"
+          onChange={onPickAttachments}
+        />
+
         <div>
           <label className="mb-2 block">Fotky</label>
           <div className="mb-2 grid grid-cols-2 gap-2 min-[400px]:grid-cols-3 sm:gap-2">
@@ -83,18 +221,76 @@ export function CreateOffer() {
                 </button>
               </div>
             ))}
-            {images.length < 5 && (
+            {images.length < MAX_IMAGES && (
               <button
                 type="button"
-                className="aspect-square bg-input-background border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-secondary transition-colors"
+                disabled={busy}
+                onClick={() => photoInputRef.current?.click()}
+                className="aspect-square bg-input-background border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:bg-secondary transition-colors disabled:opacity-50"
               >
-                <Upload className="w-6 h-6 text-muted-foreground" />
+                {uploadBusy === "photo" ? (
+                  <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
+                ) : (
+                  <Upload className="w-6 h-6 text-muted-foreground" />
+                )}
                 <span className="text-xs text-muted-foreground">Nahrát</span>
               </button>
             )}
           </div>
-          <p className="text-sm text-muted-foreground">Maximálně 5 fotek</p>
+          <p className="text-sm text-muted-foreground">
+            Maximálně {MAX_IMAGES} fotek
+            {!canUseFirebaseUpload() && " — bez Firebase se ukládají jen zmenšené náhledy v prohlížeči."}
+          </p>
         </div>
+
+        <div>
+          <label className="mb-2 block">Přílohy</label>
+          <p className="text-sm text-muted-foreground mb-2">
+            PDF nebo další obrázek (např. leták). PDF vyžaduje Firebase Storage.
+          </p>
+          <div className="space-y-2">
+            {attachments.map((a, idx) => (
+              <div
+                key={`${a.url}-${idx}`}
+                className="flex items-center gap-3 rounded-lg border border-border bg-card px-3 py-2"
+              >
+                <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate text-sm">{a.name}</span>
+                <button
+                  type="button"
+                  onClick={() => setAttachments(attachments.filter((_, i) => i !== idx))}
+                  className="shrink-0 rounded p-1 hover:bg-secondary"
+                  aria-label="Odstranit přílohu"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            {attachments.length < MAX_ATTACHMENTS && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => attachInputRef.current?.click()}
+                className="w-full sm:w-auto"
+              >
+                {uploadBusy === "attach" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Paperclip className="mr-2 h-4 w-4" />
+                )}
+                Přidat přílohu
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {uploadError && (
+          <p className="text-sm text-destructive" role="alert">
+            {uploadError}
+          </p>
+        )}
 
         <Input
           label="Název"
