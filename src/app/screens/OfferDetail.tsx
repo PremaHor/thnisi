@@ -32,31 +32,32 @@ export function OfferDetail() {
   };
 
   return (
-    <div className="flex w-full min-w-0 flex-col bg-background pb-[calc(var(--app-bottom-nav)+8.25rem)] min-[360px]:pb-[calc(var(--app-bottom-nav)+6.25rem)]">
+    <div className="flex w-full min-w-0 flex-1 min-h-0 flex-col bg-background overflow-y-auto overflow-x-hidden pb-[calc(var(--app-bottom-nav)+8.25rem)] min-[360px]:pb-[calc(var(--app-bottom-nav)+6.25rem)]">
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 py-3 pt-safe backdrop-blur">
         <div className="app-container flex items-center gap-2">
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="min-h-[44px] min-w-[44px] -ml-1 flex shrink-0 items-center justify-center rounded-lg hover:bg-secondary transition-colors sm:-ml-2"
+            className="-ml-1 flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted sm:-ml-2"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className="h-6 w-6" strokeWidth={2} />
           </button>
           <h3 className="min-w-0 flex-1 line-clamp-1">Detail nabídky</h3>
           <button
             type="button"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg hover:bg-secondary transition-colors"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted"
+            aria-label="Uložit do oblíbených"
           >
-            <Heart className="h-5 w-5" />
+            <Heart className="h-5 w-5" strokeWidth={2} />
           </button>
         </div>
       </div>
 
-      <div className="relative aspect-[4/3] bg-muted">
+      <div className="relative aspect-[4/3] overflow-hidden bg-muted sm:mx-4 sm:mt-2 sm:rounded-[20px]">
         <ImageWithFallback
           src={offer.images[currentImageIndex] ?? offer.images[0]}
           alt={offer.title}
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover sm:rounded-[20px]"
         />
         {offer.images.length > 1 && (
           <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
@@ -94,8 +95,8 @@ export function OfferDetail() {
         </div>
 
         {offer.wantsInReturn?.trim() ? (
-          <div className="rounded-2xl border-2 border-muted-teal/40 bg-surface-teal-soft/40 p-3 sm:p-4">
-            <div className="mb-2 flex items-center gap-2 text-muted-teal">
+          <div className="rounded-[14px] border border-border bg-muted/40 p-3 sm:p-4">
+            <div className="mb-2 flex items-center gap-2 text-foreground">
               <Handshake className="h-5 w-5 shrink-0" aria-hidden />
               <h4 className="m-0">Hledám na oplátku</h4>
             </div>
@@ -124,7 +125,7 @@ export function OfferDetail() {
 
         <Link
           to={`/user/${offer.sellerId}`}
-          className="block bg-secondary rounded-lg p-3 sm:p-4 hover:bg-secondary/70 transition-colors"
+          className="block rounded-[14px] border border-border bg-background p-3 transition-colors hover:bg-muted/50 sm:p-4"
         >
           <div className="flex items-center justify-between mb-3">
             <h4>Nabízející</h4>
@@ -167,7 +168,7 @@ export function OfferDetail() {
         title="Žádost o směnu odeslána!"
       >
         <div className="py-4 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-surface-honey-soft text-on-honey">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted text-primary">
             <MessageCircle className="h-8 w-8" />
           </div>
           <h3 className="mb-2">Žádost odeslána uživateli {offer.seller.name}</h3>

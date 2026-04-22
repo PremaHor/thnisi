@@ -72,7 +72,7 @@ export function Browse() {
   const fireConfetti = useCallback(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    const colors = ["#F6BD60", "#84A59D", "#F28482", "#F5CAC3", "#F7EDE2"];
+    const colors = ["#ff385c", "#e00b41", "#92174d", "#f7f7f7", "#222222"];
     confetti({
       particleCount: 70,
       spread: 64,
@@ -134,7 +134,7 @@ export function Browse() {
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-transparent">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background pb-[var(--app-bottom-nav)]">
       <div
         ref={announcerRef}
         role="status"
@@ -144,25 +144,25 @@ export function Browse() {
       />
 
       {/* Header */}
-      <div className="sticky top-0 z-20 border-b border-border/60 bg-card/80 px-2 pt-safe shadow-sm backdrop-blur-md">
-        <div className="py-3 sm:py-4">
-          <div className="mb-3">
-            <div className="mb-2 flex items-center justify-between gap-2">
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95 px-2 pt-safe backdrop-blur-md">
+        <div className="py-2 sm:py-3">
+          <div className="mb-2">
+            <div className="mb-1.5 flex items-center justify-between gap-2">
               <AppLogo to="/" size="lg" />
               {/* Location filter button */}
               <button
                 type="button"
                 onClick={() => setShowLocationModal(true)}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-all ${
+                className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold shadow-[var(--shadow-search-pill)] transition-colors ${
                   locationActive
-                    ? "border-primary/40 bg-primary text-primary-foreground shadow-md"
-                    : "border-border/40 bg-card/80 text-foreground shadow-sm hover:border-muted-teal/50"
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:border-foreground/25"
                 }`}
                 aria-label="Nastavit lokalitu"
               >
                 <MapPin className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span className="max-w-[110px] truncate">
-                  {locationActive ? locationSettings.centerLabel : "Cela CR"}
+                  {locationActive ? locationSettings.centerLabel : "Celá ČR"}
                 </span>
                 {locationActive && (
                   <span className="shrink-0 opacity-80">
@@ -172,15 +172,12 @@ export function Browse() {
                 )}
               </button>
             </div>
-            <p className="mb-1.5 font-display text-xs font-extrabold uppercase tracking-widest text-muted-teal/90">
-              Dnes na trh
-            </p>
-            <h1 className="text-balance font-display font-extrabold leading-tight tracking-tight text-foreground [font-size:clamp(1.375rem,calc(5.2vw+0.35rem),1.875rem)]">
-              Co dnes hledas?
+            <h1 className="text-balance text-[clamp(1.2rem,calc(4.5vw+0.3rem),1.625rem)] font-bold leading-[1.3] tracking-tight text-foreground">
+              Co dnes hledáš?
             </h1>
             {total > 0 && !sessionComplete && (
               <p
-                className="mt-1.5 text-sm font-semibold text-muted-foreground"
+                className="mt-0.5 text-xs font-medium text-muted-foreground"
                 aria-hidden
               >
                 {currentIndex + 1} / {total} v tomhle filtru
@@ -189,7 +186,7 @@ export function Browse() {
           </div>
 
           <div
-            className="-mx-2 flex snap-x snap-mandatory gap-2 overflow-x-auto px-2 pb-1 scrollbar-hide"
+            className="-mx-2 flex snap-x snap-mandatory gap-3 overflow-x-auto border-b border-border px-2 pb-0 scrollbar-hide"
             role="group"
             aria-label="Filtrovat podle kategorie"
           >
@@ -201,10 +198,10 @@ export function Browse() {
                   type="button"
                   onClick={() => selectCategory(cat)}
                   aria-pressed={selected}
-                  className={`min-h-[44px] min-w-[44px] shrink-0 snap-start rounded-full border-2 px-4 py-2.5 text-sm font-bold transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95 ${
+                  className={`min-h-[44px] shrink-0 snap-start border-b-2 px-1 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] sm:min-h-[48px] sm:py-2.5 sm:text-base ${
                     selected
-                      ? "border-primary/40 bg-primary text-primary-foreground shadow-md"
-                      : "border-border/40 bg-card/80 text-foreground shadow-sm hover:scale-105 hover:border-muted-teal/50"
+                      ? "border-foreground text-foreground"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {cat}
@@ -215,17 +212,17 @@ export function Browse() {
         </div>
       </div>
 
-      <div className="relative min-h-0 flex-1 overflow-hidden px-3 pb-2 pt-3 sm:px-4 sm:pt-4">
+      <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-2 pb-2 pt-2 sm:px-4 sm:pb-3 sm:pt-3">
         {filteredOffers.length === 0 ? (
           <div className="flex h-full min-h-[40vh] flex-col items-center justify-center px-2 text-center">
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl border-2 border-dashed border-muted-teal/50 bg-surface-teal-soft">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[14px] border border-dashed border-border bg-muted">
               {locationActive ? (
-                <MapPin className="h-9 w-9 text-muted-teal" aria-hidden />
+                <MapPin className="h-9 w-9 text-muted-foreground" aria-hidden />
               ) : (
-                <Search className="h-9 w-9 text-muted-teal" aria-hidden />
+                <Search className="h-9 w-9 text-muted-foreground" aria-hidden />
               )}
             </div>
-            <h2 className="mb-2 font-display text-lg font-bold">
+            <h2 className="mb-2 text-lg font-medium text-foreground">
               {locationActive ? "Nic ve tvem okoli" : "Ticho jako v trezoru"}
             </h2>
             <p className="mb-4 max-w-sm text-pretty text-muted-foreground">
@@ -237,7 +234,7 @@ export function Browse() {
               <button
                 type="button"
                 onClick={() => setShowLocationModal(true)}
-                className="min-h-[44px] rounded-2xl border-2 border-primary/20 bg-primary px-6 font-display text-sm font-bold text-primary-foreground shadow-md transition active:scale-[0.98]"
+                className="min-h-11 rounded-lg bg-primary px-6 text-base font-medium text-primary-foreground transition active:scale-[0.92] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Zmenit okruh
               </button>
@@ -245,14 +242,14 @@ export function Browse() {
           </div>
         ) : sessionComplete ? (
           <div className="flex h-full min-h-[50vh] flex-col items-center justify-center px-2 text-center">
-            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-3xl border-2 border-primary/30 bg-surface-honey-soft text-on-honey shadow-inner">
+            <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-muted text-foreground">
               <div className="relative">
                 <PartyPopper className="h-9 w-9" aria-hidden />
                 <Sparkles className="absolute -right-1 -top-1 h-4 w-4 text-primary" aria-hidden />
               </div>
             </div>
-            <h2 className="mb-2 text-balance font-display text-lg font-extrabold sm:text-xl">
-              Hotovo, sefe!
+            <h2 className="mb-2 text-balance text-lg font-semibold sm:text-xl">
+              Hotovo!
             </h2>
             <p className="mb-6 max-w-sm text-pretty text-muted-foreground">
               Chtel bys couvet, nebo stejnou jizdu znovu od prvni karty? Ty volis.
@@ -260,13 +257,13 @@ export function Browse() {
             <button
               type="button"
               onClick={restartSession}
-              className="min-h-12 rounded-2xl border-2 border-primary/20 bg-primary px-8 font-display text-base font-bold text-primary-foreground shadow-lg transition active:scale-[0.98] hover:shadow-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="min-h-12 rounded-lg bg-primary px-8 text-base font-medium text-primary-foreground transition active:scale-[0.92] hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Jdeme znovu
             </button>
           </div>
         ) : (
-          <div className="relative mx-auto h-full w-full min-w-0 max-w-sm sm:max-w-md lg:max-w-lg">
+          <div className="relative mx-auto flex min-h-0 min-w-0 w-full max-w-sm flex-1 touch-none sm:max-w-md md:max-w-2xl lg:my-auto lg:max-h-[560px] lg:max-w-4xl xl:max-h-[620px] xl:max-w-5xl">
             {filteredOffers.slice(currentIndex, currentIndex + 3).map((offer, index) => (
               <SwipeCard
                 key={`${offer.id}-${currentIndex + index}`}
@@ -282,16 +279,16 @@ export function Browse() {
       </div>
 
       {/* Action bar */}
-      <div className="shrink-0 border-t-2 border-border/50 bg-card/80 px-2 py-3 pb-safe shadow-[0_-8px_30px_-12px_rgba(42,38,35,0.1)] backdrop-blur-md">
+      <div className="shrink-0 border-t border-border bg-background/95 px-2 py-2 sm:py-3 backdrop-blur-md">
         <div className="mx-auto flex w-full min-w-0 max-w-md flex-wrap items-center justify-center gap-2 sm:max-w-lg sm:gap-4">
           <button
             type="button"
             onClick={handleUndo}
             disabled={!sessionComplete && currentIndex === 0}
             aria-label="Zpet na predchozi kartu"
-            className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 disabled:opacity-35 disabled:pointer-events-none transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-11 sm:min-w-11"
           >
-            <RotateCcw className="w-6 h-6 text-foreground" />
+            <RotateCcw className="h-5 w-5 text-foreground sm:h-6 sm:w-6" />
           </button>
 
           <button
@@ -299,9 +296,9 @@ export function Browse() {
             onClick={() => handleSwipe("left")}
             disabled={!currentOffer || sessionComplete}
             aria-label="Nechci tuto nabidku"
-            className="min-w-[56px] min-h-[56px] sm:min-w-[64px] sm:min-h-[64px] flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 disabled:opacity-35 disabled:pointer-events-none transition-all shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-full bg-icon-well text-destructive transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-14 sm:min-w-14"
           >
-            <X className="w-7 h-7 sm:w-8 sm:h-8 text-destructive" strokeWidth={2.5} />
+            <X className="h-6 w-6 text-destructive sm:h-7 sm:w-7" strokeWidth={2.5} />
           </button>
 
           <button
@@ -309,9 +306,9 @@ export function Browse() {
             onClick={handleInfo}
             disabled={!currentOffer || sessionComplete}
             aria-label="Detail nabidky"
-            className="min-w-[48px] min-h-[48px] flex items-center justify-center rounded-full bg-secondary hover:bg-secondary/80 disabled:opacity-35 disabled:pointer-events-none transition-all shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-[2.75rem] min-w-[2.75rem] items-center justify-center rounded-full bg-icon-well text-foreground transition-colors hover:bg-muted disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-11 sm:min-w-11"
           >
-            <Info className="w-6 h-6 text-foreground" />
+            <Info className="h-5 w-5 text-foreground sm:h-6 sm:w-6" />
           </button>
 
           <button
@@ -319,9 +316,9 @@ export function Browse() {
             onClick={() => handleSwipe("right")}
             disabled={!currentOffer || sessionComplete}
             aria-label="Libi se mi"
-            className="min-w-[56px] min-h-[56px] sm:min-w-[64px] sm:min-h-[64px] flex items-center justify-center rounded-full bg-primary hover:bg-primary/90 disabled:opacity-35 disabled:pointer-events-none transition-all shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex min-h-[3.25rem] min-w-[3.25rem] items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.92] sm:min-h-14 sm:min-w-14"
           >
-            <Heart className="w-7 h-7 sm:w-8 sm:h-8 text-primary-foreground" fill="currentColor" strokeWidth={2.5} />
+            <Heart className="h-6 w-6 text-primary-foreground sm:h-7 sm:w-7" fill="currentColor" strokeWidth={2.5} />
           </button>
         </div>
       </div>

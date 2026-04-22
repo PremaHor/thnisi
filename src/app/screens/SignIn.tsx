@@ -53,13 +53,13 @@ export function SignIn() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-transparent px-4 py-8 sm:px-6 sm:py-12">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8 sm:px-6 sm:py-12">
       <div className="mb-6 sm:mb-8">
         <div className="flex justify-center">
           <AppLogo to="/" size="lg" />
         </div>
       </div>
-      <div className="w-full max-w-sm rounded-3xl border-2 border-border/50 bg-card/90 p-5 shadow-2xl backdrop-blur-sm sm:p-8">
+      <div className="w-full max-w-sm rounded-[20px] border border-border bg-card p-5 shadow-[var(--shadow-elev-2)] sm:p-8">
         <div className="mb-6 text-center sm:mb-8">
           <h1 className="mb-2">Vítej zpátky</h1>
           <p className="text-muted-foreground">Hned jsi uvnitř a můžeš zase něco směnit.</p>
@@ -70,7 +70,7 @@ export function SignIn() {
             type="button"
             variant="outline"
             fullWidth
-            className="gap-2 border-2 border-border/90 bg-card font-semibold shadow-sm hover:bg-secondary/80"
+            className="gap-2 border border-border bg-background font-medium shadow-none hover:bg-muted"
             onClick={handleGoogleSignIn}
           >
             <GoogleGIcon className="h-5 w-5 shrink-0" />

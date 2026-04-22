@@ -36,15 +36,15 @@ export function SignUp() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center bg-transparent px-4 py-8 sm:px-6 sm:py-12">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-8 sm:px-6 sm:py-12">
       <div className="mb-6 sm:mb-8">
         <div className="flex justify-center">
           <AppLogo to="/" size="lg" />
         </div>
       </div>
-      <div className="w-full max-w-sm rounded-3xl border-2 border-border/50 bg-card/90 p-5 shadow-2xl backdrop-blur-sm sm:p-8">
+      <div className="w-full max-w-sm rounded-[20px] border border-border bg-card p-5 shadow-[var(--shadow-elev-2)] sm:p-8">
         <div className="mb-6 text-center sm:mb-8">
-          <p className="mb-1 font-display text-xs font-extrabold uppercase tracking-widest text-muted-teal/90">
+          <p className="mb-1 text-xs font-medium text-muted-foreground">
             Přidat se
           </p>
           <h1 className="mb-2">Vytvořit účet</h1>

@@ -133,7 +133,7 @@ export function LocationFilterModal({ isOpen, onClose, current, onChange }: Prop
 
             {/* Suggestions dropdown */}
             {suggestions.length > 0 && (
-              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-border bg-card shadow-cartoon-sm overflow-hidden">
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-border bg-card shadow-[var(--shadow-elev-2)]">
                 {suggestions.map((city) => (
                   <button
                     key={city.label}
@@ -188,10 +188,10 @@ export function LocationFilterModal({ isOpen, onClose, current, onChange }: Prop
             <button
               type="button"
               onClick={() => setDraft((d) => ({ ...d, radiusKm: 0 }))}
-              className={`min-h-[40px] rounded-xl border-2 text-sm font-bold transition-all ${
+              className={`min-h-10 rounded-lg border text-sm font-semibold transition-colors ${
                 draft.radiusKm === 0
                   ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border bg-card hover:border-muted-teal/50"
+                  : "border-border bg-card hover:border-foreground/20"
               }`}
             >
               Vše
@@ -201,10 +201,10 @@ export function LocationFilterModal({ isOpen, onClose, current, onChange }: Prop
                 key={r}
                 type="button"
                 onClick={() => setDraft((d) => ({ ...d, radiusKm: r }))}
-                className={`min-h-[40px] rounded-xl border-2 text-sm font-bold transition-all ${
+                className={`min-h-10 rounded-lg border text-sm font-semibold transition-colors ${
                   draft.radiusKm === r
                     ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card hover:border-muted-teal/50"
+                    : "border-border bg-card hover:border-foreground/20"
                 }`}
               >
                 {r} km
@@ -240,8 +240,8 @@ export function LocationFilterModal({ isOpen, onClose, current, onChange }: Prop
 
         {/* Preview info */}
         {isFiltered && (
-          <div className="rounded-xl border border-muted-teal/40 bg-surface-teal-soft/40 px-4 py-3 text-sm">
-            <p className="font-semibold text-muted-teal mb-0.5">Aktivní filtr</p>
+          <div className="rounded-xl border border-border bg-muted/50 px-4 py-3 text-sm">
+            <p className="mb-0.5 font-semibold text-foreground">Aktivní filtr</p>
             <p className="text-foreground">
               Zobrazím nabídky do <span className="font-bold">{draft.radiusKm} km</span> od{" "}
               <span className="font-bold">{draft.centerLabel}</span>

@@ -24,7 +24,7 @@ export function Avatar({ src, alt = "User", size = "md", className = "", ...prop
 
   return (
     <div
-      className={`${sizes[size]} flex items-center justify-center overflow-hidden rounded-full border-[3px] border-border bg-muted shadow-cartoon-xs ${className}`}
+      className={`${sizes[size]} flex items-center justify-center overflow-hidden rounded-full border border-border bg-muted ${className}`}
       {...props}
     >
       {src ? (

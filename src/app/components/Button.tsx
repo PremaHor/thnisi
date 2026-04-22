@@ -9,23 +9,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = "primary", size = "md", fullWidth, className = "", children, ...props }, ref) => {
     const baseStyles =
-      "inline-flex items-center justify-center rounded-2xl border-2 border-ink/20 font-display font-semibold transition-[transform,box-shadow,filter] duration-150 active:translate-y-px active:shadow-cartoon-sm disabled:pointer-events-none disabled:opacity-50 dark:border-foreground/20";
+      "inline-flex items-center justify-center rounded-lg font-medium transition-transform duration-150 active:scale-[0.92] disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-0";
 
     const variants = {
-      primary:
-        "bg-primary text-primary-foreground shadow-cartoon hover:-translate-y-0.5 hover:shadow-cartoon-lg hover:brightness-105",
-      secondary:
-        "bg-secondary text-secondary-foreground shadow-cartoon-sm hover:-translate-y-0.5 hover:shadow-cartoon hover:brightness-105",
-      outline: "border-2 border-border bg-card/80 shadow-cartoon-sm hover:-translate-y-0.5 hover:bg-secondary/90 hover:shadow-cartoon",
-      ghost: "border-transparent shadow-none hover:translate-y-0 hover:shadow-none hover:bg-secondary/60",
+      primary: "bg-primary text-primary-foreground shadow-none hover:bg-primary/90 border-0",
+      secondary: "bg-secondary text-secondary-foreground border-0 shadow-none hover:bg-secondary/80",
+      outline:
+        "border border-border bg-background text-foreground shadow-none hover:bg-muted",
+      ghost: "border-0 shadow-none hover:bg-muted",
       destructive:
-        "border-ink/25 bg-destructive text-destructive-foreground shadow-cartoon hover:-translate-y-0.5 hover:shadow-cartoon-lg hover:brightness-110",
+        "border-0 bg-destructive text-destructive-foreground shadow-none hover:bg-destructive/90",
     };
 
     const sizes = {
-      sm: "min-h-[36px] px-3 py-2",
-      md: "min-h-[44px] px-4 py-2.5",
-      lg: "min-h-[48px] px-6 py-3",
+      sm: "min-h-9 px-4 py-2 text-sm",
+      md: "min-h-11 px-6 py-3.5 text-base",
+      lg: "min-h-12 px-8 py-3.5 text-base",
     };
 
     const widthClass = fullWidth ? "w-full" : "";
@@ -39,7 +38,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {children}
       </button>
     );
-  }
+  },
 );
 
 Button.displayName = "Button";
