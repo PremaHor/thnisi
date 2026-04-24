@@ -1,0 +1,5 @@
+# Nahraďte Contact e-mailem nebo URL, které reálně kontrolujete (RFC 9116).
+Contact: mailto:bezpecnost@trhnisi.cz
+Expires: 2027-12-31T23:59:59.000Z
+Preferred-Languages: cs, en
+Canonical: https://trhnisi.vercel.app/.well-known/security.txt

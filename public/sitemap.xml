@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://trhnisi.vercel.app/</loc><changefreq>daily</changefreq><priority>1</priority></url>
+  <url><loc>https://trhnisi.vercel.app/saved</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://trhnisi.vercel.app/create</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://trhnisi.vercel.app/my-offers</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://trhnisi.vercel.app/trades</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://trhnisi.vercel.app/chats</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://trhnisi.vercel.app/profile</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
+  <url><loc>https://trhnisi.vercel.app/terms</loc><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://trhnisi.vercel.app/privacy</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>
+  <url><loc>https://trhnisi.vercel.app/settings</loc><changefreq>monthly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://trhnisi.vercel.app/sign-in</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+  <url><loc>https://trhnisi.vercel.app/sign-up</loc><changefreq>yearly</changefreq><priority>0.3</priority></url>
+</urlset>

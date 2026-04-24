@@ -1,0 +1,8 @@
+# TrhniSi
+
+> Směnný marketplace PWA — nabídky, chat, profil.
+
+## Hlavní stránky
+- https://trhnisi.vercel.app/ — prohlížení nabídek
+- https://trhnisi.vercel.app/privacy — zásady ochrany osobních údajů
+- https://trhnisi.vercel.app/terms — podmínky služby

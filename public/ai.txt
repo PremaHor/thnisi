@@ -1,0 +1,2 @@
+# Volitelný soubor — žádný jednotný standard; upravte podle vaší politiky.
+# Veřejné stránky: viz robots.txt a https://trhnisi.vercel.app/privacy
