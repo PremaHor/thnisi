@@ -47,7 +47,7 @@ const MOCK_CHATS = [
 const MOCK_HIDDEN_KEY = "barter:hiddenMockChats";
 
 export function Chats() {
-  const { user, loading, configured } = useFirebase();
+  const { user, loading, configured, error: authError } = useFirebase();
   const isFb = configured && isFirebaseConfigured();
   const [chats, setChats] = useState<FirestoreChat[]>([]);
   const [hiddenChatIds, setHiddenChatIds] = useState<Set<string>>(() => new Set());
@@ -177,6 +177,12 @@ export function Chats() {
         </div>
       )}
 
+      {authError && (
+        <div className="border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-sm text-destructive">
+          {authError.message}
+        </div>
+      )}
+
       {err && (
         <div className="px-4 py-2 text-sm text-destructive">{err.message}</div>
       )}
@@ -274,6 +280,12 @@ export function Chats() {
                 </div>
               ))
             : null}
+
+        {isFb && !loading && !user && !authError && !err && (
+          <div className="flex flex-col items-center justify-center px-6 py-12 text-center text-muted-foreground text-sm">
+            Nepodařilo se přihlásit k Firebase. Zkontrolujte konzoli prohlížeče a nastavení Authentication.
+          </div>
+        )}
 
         {isFb && !loading && user && rows.length === 0 && !err && (
           <div className="flex flex-col items-center justify-center px-6 py-16 text-center">

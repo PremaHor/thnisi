@@ -36,7 +36,19 @@ export function useFirebaseAuth(): AuthState {
           setUser(cred.user);
           setError(null);
         } catch (e) {
-          setError(e instanceof Error ? e : new Error(String(e)));
+          const code =
+            typeof e === "object" && e !== null && "code" in e
+              ? String((e as { code: string }).code)
+              : "";
+          let msg = e instanceof Error ? e.message : String(e);
+          if (code === "auth/operation-not-allowed") {
+            msg =
+              "Anonymní přihlášení není zapnuté. V Firebase Console → Authentication → Sign-in method povolte „Anonymous“.";
+          } else if (code === "auth/configuration-not-found" || code === "auth/invalid-api-key") {
+            msg =
+              "Neplatná nebo chybějící Firebase konfigurace. Zkontrolujte VITE_FIREBASE_* v .env a znovu spusťte dev server / build.";
+          }
+          setError(new Error(msg));
         } finally {
           setLoading(false);
         }
