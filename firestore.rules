@@ -2,8 +2,16 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ─────────────────────────────────────────────
+    // Helpers
+    // ─────────────────────────────────────────────
+
     function isAuthed() {
       return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthed() && request.auth.uid == userId;
     }
 
     function isInParticipants(ids) {
@@ -15,7 +23,53 @@ service cloud.firestore {
       return a < b ? a + '_' + b : b + '_' + a;
     }
 
-    /** Dokument /chats/{chatId} musí odpovídat účastníkům (zabraňuje nesouladu id vs. obsah). */
+    function validOfferStatus(s) {
+      return s == 'active' || s == 'paused' || s == 'completed' || s == 'deleted';
+    }
+
+    function validTradeStatus(s) {
+      return s == 'pending' || s == 'accepted' || s == 'declined';
+    }
+
+    // ─────────────────────────────────────────────
+    // Offer field validation
+    // ─────────────────────────────────────────────
+
+    function validOfferFields(d) {
+      return d.title is string && d.title.size() >= 3 && d.title.size() <= 80
+        && d.description is string && d.description.size() >= 10 && d.description.size() <= 2000
+        && d.wantsInReturn is string && d.wantsInReturn.size() >= 3 && d.wantsInReturn.size() <= 500
+        && d.category is string && d.category.size() >= 1 && d.category.size() <= 80
+        && d.location is string && d.location.size() <= 120
+        && d.isRemote is bool
+        && d.images is list
+        && d.attachments is list
+        && d.tags is list
+        && d.sellerName is string
+        && d.sellerAvatar is string;
+    }
+
+    // ─────────────────────────────────────────────
+    // User field validation
+    // ─────────────────────────────────────────────
+
+    function validUserFields(d) {
+      return d.uid is string
+        && d.email is string
+        && d.name is string && d.name.size() <= 80
+        && d.bio is string && d.bio.size() <= 500
+        && d.location is string && d.location.size() <= 120
+        && d.avatarUrl is string
+        && d.completedTrades is number
+        && d.ratingAvg is number
+        && d.ratingCount is number;
+    }
+
+    // ─────────────────────────────────────────────
+    // Chat helpers
+    // ─────────────────────────────────────────────
+
+    /** Dokument /chats/{chatId} musí odpovídat účastníkům. */
     function validChatIdForParticipants(chatId, p) {
       return p is list
         && (
@@ -29,7 +83,7 @@ service cloud.firestore {
         );
     }
 
-    /** 1 = solo thread, 2 = dvou stran – žádné „přidání“ cizího UID později při update */
+    /** 1 = solo thread, 2 = dvou stran – žádné přidání cizího UID při update. */
     function validParticipantListOnCreate() {
       let p = request.resource.data.participantIds;
       return p is list
@@ -40,6 +94,11 @@ service cloud.firestore {
 
     function participantListUnchanged() {
       return request.resource.data.participantIds == resource.data.participantIds;
+    }
+
+    function validLastMessage(d) {
+      return !(d.keys().hasAny(['lastMessage']))
+        || (d.lastMessage is string && d.lastMessage.size() <= 500);
     }
 
     function validMessageText() {
@@ -58,171 +117,166 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/chats/$(chatId)).data;
     }
 
-    function isOwner(userId) {
-      return isAuthed() && request.auth.uid == userId;
+    // ─────────────────────────────────────────────
+    // completedBy validation – pouze účastníci směny
+    // ─────────────────────────────────────────────
+
+    function validCompletedBy(d, existing) {
+      let cb = d.completedBy;
+      let owner = existing.ownerId;
+      let requester = existing.requesterId;
+      return cb is list
+        && (cb.size() == 0
+          || (cb.size() == 1 && (cb[0] == owner || cb[0] == requester))
+          || (cb.size() == 2 && (cb[0] == owner || cb[0] == requester)
+                             && (cb[1] == owner || cb[1] == requester)
+                             && cb[0] != cb[1]));
     }
 
-    function validOfferStatus(s) {
-      return s == 'active' || s == 'paused' || s == 'completed' || s == 'deleted';
-    }
-
-    function validTradeStatus(s) {
-      return s == 'pending' || s == 'accepted' || s == 'declined';
-    }
+    // ─────────────────────────────────────────────
+    // USERS
+    // ─────────────────────────────────────────────
 
     match /users/{userId} {
       allow read: if isAuthed();
+
       allow create: if isOwner(userId)
         && request.resource.data.uid == userId
+        && validUserFields(request.resource.data)
         && request.resource.data.keys().hasOnly([
-          'uid',
-          'email',
-          'name',
-          'bio',
-          'location',
-          'avatarUrl',
-          'completedTrades',
-          'ratingAvg',
-          'ratingCount',
-          'createdAt',
-          'updatedAt'
+          'uid', 'email', 'name', 'bio', 'location', 'avatarUrl',
+          'completedTrades', 'ratingAvg', 'ratingCount', 'createdAt', 'updatedAt'
         ]);
+
       allow update: if isOwner(userId)
-        && request.resource.data.uid == userId
+        && request.resource.data.uid == resource.data.uid
         && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.completedTrades == resource.data.completedTrades
+        && request.resource.data.ratingAvg == resource.data.ratingAvg
+        && request.resource.data.ratingCount == resource.data.ratingCount
+        && validUserFields(request.resource.data)
         && request.resource.data.keys().hasOnly([
-          'uid',
-          'email',
-          'name',
-          'bio',
-          'location',
-          'avatarUrl',
-          'completedTrades',
-          'ratingAvg',
-          'ratingCount',
-          'createdAt',
-          'updatedAt'
+          'uid', 'email', 'name', 'bio', 'location', 'avatarUrl',
+          'completedTrades', 'ratingAvg', 'ratingCount', 'createdAt', 'updatedAt'
         ]);
+
       allow delete: if false;
+
+      /** Skrytí konverzace jen v mém seznamu. */
+      match /hiddenChats/{chatId} {
+        allow read, write: if isAuthed() && request.auth.uid == userId;
+      }
     }
 
+    // ─────────────────────────────────────────────
+    // OFFERS
+    // ─────────────────────────────────────────────
+
     match /offers/{offerId} {
-      allow read: if true;
+      allow read: if resource.data.status == 'active'
+        || (isAuthed() && resource.data.sellerId == request.auth.uid);
+
       allow create: if isAuthed()
         && request.resource.data.sellerId == request.auth.uid
-        && validOfferStatus(request.resource.data.status)
+        && request.resource.data.status == 'active'
+        && validOfferFields(request.resource.data)
         && request.resource.data.keys().hasOnly([
-          'title',
-          'description',
-          'wantsInReturn',
-          'category',
-          'location',
-          'lat',
-          'lng',
-          'isRemote',
-          'image',
-          'images',
-          'attachments',
-          'tags',
-          'sellerId',
-          'sellerName',
-          'sellerAvatar',
-          'status',
-          'createdAt',
-          'updatedAt'
+          'title', 'description', 'wantsInReturn', 'category',
+          'location', 'lat', 'lng', 'isRemote', 'image', 'images',
+          'attachments', 'tags', 'sellerId', 'sellerName', 'sellerAvatar',
+          'status', 'createdAt', 'updatedAt'
         ]);
+
       allow update: if isAuthed()
         && resource.data.sellerId == request.auth.uid
         && request.resource.data.sellerId == resource.data.sellerId
         && request.resource.data.createdAt == resource.data.createdAt
         && validOfferStatus(request.resource.data.status)
+        && validOfferFields(request.resource.data)
         && request.resource.data.keys().hasOnly([
-          'title',
-          'description',
-          'wantsInReturn',
-          'category',
-          'location',
-          'lat',
-          'lng',
-          'isRemote',
-          'image',
-          'images',
-          'attachments',
-          'tags',
-          'sellerId',
-          'sellerName',
-          'sellerAvatar',
-          'status',
-          'createdAt',
-          'updatedAt'
+          'title', 'description', 'wantsInReturn', 'category',
+          'location', 'lat', 'lng', 'isRemote', 'image', 'images',
+          'attachments', 'tags', 'sellerId', 'sellerName', 'sellerAvatar',
+          'status', 'createdAt', 'updatedAt'
         ]);
+
       allow delete: if false;
     }
 
+    // ─────────────────────────────────────────────
+    // TRADE REQUESTS
+    // ─────────────────────────────────────────────
+
     match /tradeRequests/{requestId} {
-      allow read: if isAuthed() && (
-        resource.data.ownerId == request.auth.uid ||
-        resource.data.requesterId == request.auth.uid
-      );
+      allow read: if isAuthed()
+        && (resource.data.ownerId == request.auth.uid
+          || resource.data.requesterId == request.auth.uid);
 
       allow create: if isAuthed()
         && request.resource.data.requesterId == request.auth.uid
         && request.resource.data.ownerId is string
         && request.resource.data.ownerId != request.auth.uid
-        && validTradeStatus(request.resource.data.status)
         && request.resource.data.status == 'pending'
         && request.resource.data.keys().hasOnly([
-          'offerId',
-          'offerTitle',
-          'requesterId',
-          'requesterName',
-          'ownerId',
-          'ownerName',
-          'status',
-          'completedBy',
-          'createdAt',
-          'updatedAt'
+          'offerId', 'offerTitle', 'requesterId', 'requesterName',
+          'ownerId', 'ownerName', 'status', 'completedBy', 'createdAt', 'updatedAt'
         ]);
 
       allow update: if isAuthed()
-        && (
-          resource.data.ownerId == request.auth.uid ||
-          resource.data.requesterId == request.auth.uid
-        )
+        && (resource.data.ownerId == request.auth.uid
+          || resource.data.requesterId == request.auth.uid)
+        // immutable pole
         && request.resource.data.offerId == resource.data.offerId
         && request.resource.data.offerTitle == resource.data.offerTitle
         && request.resource.data.requesterId == resource.data.requesterId
-        && request.resource.data.ownerId == resource.data.ownerId
         && request.resource.data.requesterName == resource.data.requesterName
+        && request.resource.data.ownerId == resource.data.ownerId
         && request.resource.data.ownerName == resource.data.ownerName
         && request.resource.data.createdAt == resource.data.createdAt
+        // validní status
         && validTradeStatus(request.resource.data.status)
+        // pouze owner smí přijmout/odmítnout
+        && (resource.data.ownerId != request.auth.uid
+          ? request.resource.data.status == resource.data.status
+          : true)
+        // requester nesmí přijmout sám sobě
+        && !(resource.data.requesterId == request.auth.uid
+          && request.resource.data.status == 'accepted')
+        // completedBy – pouze účastníci
+        && validCompletedBy(request.resource.data, resource.data)
         && request.resource.data.keys().hasOnly([
-          'offerId',
-          'offerTitle',
-          'requesterId',
-          'requesterName',
-          'ownerId',
-          'ownerName',
-          'status',
-          'completedBy',
-          'createdAt',
-          'updatedAt'
+          'offerId', 'offerTitle', 'requesterId', 'requesterName',
+          'ownerId', 'ownerName', 'status', 'completedBy', 'createdAt', 'updatedAt'
         ]);
 
       allow delete: if false;
     }
 
+    // ─────────────────────────────────────────────
+    // CHATS
+    // ─────────────────────────────────────────────
+
     match /chats/{chatId} {
-      /**
-       * Párový chat bez pozvánky stále umožňuje „vynucený“ thread (viz bezpečnostní audit).
-       * Doplňte invite flow nebo Cloud Function, pokud chcete souhlas druhé strany.
-       */
       allow read: if isInParticipants(resource.data.participantIds);
+
       allow create: if validParticipantListOnCreate()
-        && validChatIdForParticipants(chatId, request.resource.data.participantIds);
+        && validChatIdForParticipants(chatId, request.resource.data.participantIds)
+        && validLastMessage(request.resource.data)
+        && request.resource.data.keys().hasOnly([
+          'participantIds', 'lastMessage', 'lastMessageAt',
+          'otherPartyName', 'offerId', 'createdAt', 'updatedAt'
+        ]);
+
       allow update: if isInParticipants(resource.data.participantIds)
-        && participantListUnchanged();
+        && participantListUnchanged()
+        && validLastMessage(request.resource.data)
+        && (!(request.resource.data.keys().hasAny(['offerId']))
+          || request.resource.data.offerId == resource.data.offerId)
+        && request.resource.data.keys().hasOnly([
+          'participantIds', 'lastMessage', 'lastMessageAt',
+          'otherPartyName', 'offerId', 'createdAt', 'updatedAt'
+        ]);
+
       allow delete: if false;
 
       match /messages/{msgId} {
@@ -233,9 +287,5 @@ service cloud.firestore {
       }
     }
 
-    /** Skrytí konverzace jen v mém seznamu (dokument v chats/ zůstává kvůli pravidlům zpráv). */
-    match /users/{userId}/hiddenChats/{chatId} {
-      allow read, write: if isAuthed() && request.auth.uid == userId;
-    }
   }
 }
