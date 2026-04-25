@@ -21,7 +21,7 @@ export interface AppSettings {
 const SETTINGS_KEY = "trhnisi:appSettings:v1";
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  theme: "system",
+  theme: "light",
   language: "cs",
   notifications: {
     newTrades: true,

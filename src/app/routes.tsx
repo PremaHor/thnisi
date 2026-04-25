@@ -17,6 +17,7 @@ import { Privacy } from "./screens/Privacy";
 import { Settings } from "./screens/Settings";
 import { SellerProfile } from "./screens/SellerProfile";
 import { NotFound } from "./screens/NotFound";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
@@ -26,18 +27,23 @@ export const router = createBrowserRouter([
       { index: true, Component: Browse },
       { path: "saved", Component: SavedOffers },
       { path: "offer/:id", Component: OfferDetail },
-      { path: "create", Component: CreateOffer },
-      { path: "edit/:id", Component: CreateOffer },
-      { path: "my-offers", Component: MyOffers },
-      { path: "trades", Component: TradeRequests },
-      { path: "chats", Component: Chats },
-      { path: "chat/:id", Component: ChatThread },
-      { path: "profile", Component: Profile },
-      { path: "profile/edit", Component: EditProfile },
       { path: "user/:sellerId", Component: SellerProfile },
       { path: "terms", Component: Terms },
       { path: "privacy", Component: Privacy },
-      { path: "settings", Component: Settings },
+      {
+        Component: ProtectedRoute,
+        children: [
+          { path: "create", Component: CreateOffer },
+          { path: "edit/:id", Component: CreateOffer },
+          { path: "my-offers", Component: MyOffers },
+          { path: "trades", Component: TradeRequests },
+          { path: "chats", Component: Chats },
+          { path: "chat/:id", Component: ChatThread },
+          { path: "profile", Component: Profile },
+          { path: "profile/edit", Component: EditProfile },
+          { path: "settings", Component: Settings },
+        ],
+      },
     ],
   },
   {

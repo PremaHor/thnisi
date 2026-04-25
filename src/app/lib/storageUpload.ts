@@ -1,5 +1,5 @@
-import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { getFirebaseApp, getFirebaseStorage, isFirebaseConfigured } from "./firebase";
+import { uploadOfferFile, uploadProfileAvatar } from "../../lib/storage";
+import { isFirebaseConfigured } from "./firebase";
 
 function extFromFile(file: File): string {
   const n = file.name.toLowerCase();
@@ -29,22 +29,22 @@ export async function uploadUserAsset(params: {
   if (!isFirebaseConfigured()) {
     throw new Error("Firebase není nakonfigurován");
   }
-  getFirebaseApp();
-  const storage = getFirebaseStorage();
-  const id =
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-  const ext =
+  if (params.scope.startsWith("profile")) {
+    const file =
+      params.file instanceof File
+        ? params.file
+        : new File([params.file], `avatar.${extFromFile(new File([params.file], "avatar", { type: params.contentType }))}`, {
+            type: params.contentType,
+          });
+    return uploadProfileAvatar(params.userId, file);
+  }
+  const file =
     params.file instanceof File
-      ? extFromFile(params.file)
-      : params.contentType === "application/pdf"
-        ? "pdf"
-        : "jpg";
-  const path = `uploads/${params.userId}/${params.scope}/${id}.${ext}`;
-  const r = ref(storage, path);
-  await uploadBytes(r, params.file, { contentType: params.contentType });
-  return getDownloadURL(r);
+      ? params.file
+      : new File([params.file], `offer.${params.contentType === "application/pdf" ? "pdf" : "jpg"}`, {
+          type: params.contentType,
+        });
+  return uploadOfferFile(params.userId, file);
 }
 
 export function canUseFirebaseUpload(): boolean {

@@ -5,7 +5,6 @@ import { Search, X, Heart, Info, RotateCcw, Sparkles, PartyPopper, MapPin } from
 import { SwipeCard, type SwipeCardHandle } from "../components/SwipeCard";
 import { AppLogo } from "../components/AppLogo";
 import { LocationFilterModal } from "../components/LocationFilterModal";
-import { SWIPE_OFFERS } from "../data/barterOffers";
 import {
   type LocationSettings,
   loadLocationSettings,
@@ -18,6 +17,9 @@ import {
   saveLikedIds,
   savePassedIds,
 } from "../data/swipePreferencesStore";
+import { getActiveOffers } from "../../lib/offers";
+import { getUserProfile } from "../../lib/profile";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 
 const CATEGORIES = ["Vše", "Jídlo", "Služby", "Elektronika", "Ostatní"];
 
@@ -31,6 +33,7 @@ type SwipeAction = { direction: "left" | "right"; id: string };
 
 export function Browse() {
   const navigate = useNavigate();
+  const { loading: authLoading, user } = useFirebaseAuth();
   const [selectedCategory, setSelectedCategory] = useState("Vše");
   const [passedIds, setPassedIds] = useState<string[]>(() => loadPassedIds());
   const [likedIds, setLikedIds] = useState<string[]>(() => loadLikedIds());
@@ -39,12 +42,83 @@ export function Browse() {
     loadLocationSettings()
   );
   const [showLocationModal, setShowLocationModal] = useState(false);
+  const [offers, setOffers] = useState<
+    Array<{
+      id: string;
+      sellerId: string;
+      title: string;
+      description: string;
+      wantsInReturn: string;
+      category: string;
+      location: string;
+      image: string;
+      lat?: number;
+      lng?: number;
+      isRemote?: boolean;
+      seller: { name: string; avatar: string };
+    }>
+  >([]);
+  const [offersLoading, setOffersLoading] = useState(true);
+  const [offersError, setOffersError] = useState<string | null>(null);
   const announcerRef = useRef<HTMLDivElement>(null);
   const topSwipeCardRef = useRef<SwipeCardHandle>(null);
 
+  useEffect(() => {
+    if (authLoading) return;
+    void (async () => {
+      setOffersLoading(true);
+      setOffersError(null);
+      try {
+        const active = await getActiveOffers();
+        const sellerIds = [...new Set(active.map((o) => o.sellerId))];
+        const profileMap = new Map<string, { name: string; avatarUrl: string }>();
+        await Promise.all(
+          sellerIds.map(async (uid) => {
+            const p = await getUserProfile(uid);
+            if (p) profileMap.set(uid, { name: p.name ?? "", avatarUrl: p.avatarUrl ?? "" });
+          })
+        );
+        const rows = active.filter((offer) => offer.sellerId !== user?.uid).map((offer) => {
+          const profile = profileMap.get(offer.sellerId);
+          const sellerName =
+            (offer as unknown as Record<string, unknown>).sellerName as string | undefined;
+          const sellerAvatar =
+            (offer as unknown as Record<string, unknown>).sellerAvatar as string | undefined;
+          const resolvedName =
+            profile?.name?.trim() ||
+            sellerName?.trim() ||
+            "";
+          return {
+            id: offer.id,
+            sellerId: offer.sellerId,
+            title: offer.title,
+            description: offer.description,
+            wantsInReturn: offer.wantsInReturn,
+            category: offer.category,
+            location: offer.location,
+            image: offer.image || offer.images[0] || "",
+            lat: offer.lat,
+            lng: offer.lng,
+            isRemote: offer.isRemote,
+            seller: {
+              name: resolvedName || `Uživatel ${offer.sellerId.slice(0, 6)}`,
+              avatar: profile?.avatarUrl || sellerAvatar || "",
+            },
+          };
+        });
+        setOffers(rows);
+      } catch (e) {
+        console.error("Browse load error:", e);
+        setOffersError("Nabídky se nepodařilo načíst.");
+      } finally {
+        setOffersLoading(false);
+      }
+    })();
+  }, [authLoading]);
+
   const locationActive = locationSettings.radiusKm > 0;
 
-  const filteredOffers = SWIPE_OFFERS.filter((offer) => {
+  const filteredOffers = offers.filter((offer) => {
     const matchesCategory = selectedCategory === "Vše" || offer.category === selectedCategory;
     if (!matchesCategory) return false;
     if (!locationActive) return true;
@@ -70,7 +144,7 @@ export function Browse() {
     [filteredOffers, passedSet, likedSet]
   );
 
-  const getDistanceKm = (offer: (typeof SWIPE_OFFERS)[number]): number | undefined => {
+  const getDistanceKm = (offer: (typeof offers)[number]): number | undefined => {
     if (!locationActive || offer.isRemote || offer.lat == null || offer.lng == null)
       return undefined;
     return haversineKm(locationSettings.lat, locationSettings.lng, offer.lat, offer.lng);
@@ -268,6 +342,14 @@ export function Browse() {
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-2 pt-2 sm:px-4 sm:pb-3 sm:pt-3">
+        {offersError && (
+          <div className="mb-2 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {offersError}
+          </div>
+        )}
+        {offersLoading && (
+          <div className="mb-2 text-sm text-muted-foreground">Načítání nabídek…</div>
+        )}
         {filteredOffers.length === 0 ? (
           <div className="flex h-full min-h-[40vh] flex-col items-center justify-center px-2 text-center">
             <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-[14px] border border-dashed border-border bg-muted">

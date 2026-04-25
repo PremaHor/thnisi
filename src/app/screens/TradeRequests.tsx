@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { Link } from "react-router";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate } from "react-router";
 import { Clock, CheckCircle, XCircle, MessageCircle, Star } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
@@ -12,6 +12,14 @@ import {
   markTradeComplete,
   submitTradeRating,
 } from "../data/ratingsStore";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import {
+  ensureChatForTrade,
+  subscribeTradeRequestsForUser,
+  markTradeRequestCompleted,
+  updateTradeRequestStatus,
+  type TradeRequest,
+} from "../../lib/trades";
 
 const FILTER_LABELS = {
   all: "Vše",
@@ -30,55 +38,15 @@ const STATUS_LABELS: Record<string, string> = {
   declined: "Odmítnuto",
 };
 
-type MockRequest = {
-  id: string;
-  type: "incoming" | "outgoing";
-  user: { name: string; avatar: string };
-  /** Klíč pro ratingsStore – koho ohodnotíte po dokončení */
-  peerRatingKey: string;
-  /** ID nabídky v barterOffers (pro odkaz do chatu) */
-  offerId: string;
-  offer: string;
-  status: "pending" | "accepted" | "declined";
-  date: string;
-};
-
-const MOCK_REQUESTS: MockRequest[] = [
-  {
-    id: "1",
-    type: "incoming",
-    user: { name: "Petr M.", avatar: "" },
-    peerRatingKey: "petr-m",
-    offerId: "1",
-    offer: "Čerstvá bio zelenina",
-    status: "pending",
-    date: "před 2 h",
-  },
-  {
-    id: "2",
-    type: "outgoing",
-    user: { name: "Eva N.", avatar: "" },
-    peerRatingKey: "eva-n",
-    offerId: "4",
-    offer: "Domácí chléb a pečivo",
-    status: "accepted",
-    date: "před 1 dnem",
-  },
-  {
-    id: "3",
-    type: "incoming",
-    user: { name: "Martin S.", avatar: "" },
-    peerRatingKey: "martin-s",
-    offerId: "2",
-    offer: "Tvorba webů a design",
-    status: "declined",
-    date: "před 3 dny",
-  },
-];
-
 export function TradeRequests() {
+  const { user } = useFirebaseAuth();
+  const navigate = useNavigate();
   const [, setRerender] = useState(0);
   const [filter, setFilter] = useState<"all" | "incoming" | "outgoing">("all");
+  const [requests, setRequests] = useState<TradeRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [acceptBusy, setAcceptBusy] = useState<string | null>(null);
   const refresh = useCallback(() => setRerender((n) => n + 1), []);
 
   const [rateTarget, setRateTarget] = useState<{
@@ -88,38 +56,95 @@ export function TradeRequests() {
   } | null>(null);
   const [picked, setPicked] = useState<1 | 2 | 3 | 4 | 5 | null>(null);
 
-  const filteredRequests = MOCK_REQUESTS.filter(
-    (req) => filter === "all" || req.type === filter
-  );
+  useEffect(() => {
+    if (!user?.uid) {
+      setRequests([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const unsub = subscribeTradeRequestsForUser(
+      user.uid,
+      (rows) => {
+        setRequests(rows);
+        setLoading(false);
+        setError(null);
+      },
+      () => {
+        setError("Žádosti o směnu se nepodařilo načíst.");
+        setLoading(false);
+      }
+    );
+    return unsub;
+  }, [user?.uid]);
+
+  const mappedRequests = requests.map((req) => {
+    const incoming = req.ownerId === user?.uid;
+    const isOutgoing = req.requesterId === user?.uid;
+    const peerName = incoming ? req.requesterName : req.ownerName;
+    const peerRatingKey = incoming ? req.requesterId : req.ownerId;
+    return {
+      id: req.id,
+      type: incoming ? "incoming" : "outgoing",
+      user: { name: peerName, avatar: "" },
+      peerRatingKey,
+      offerId: req.offerId,
+      offer: req.offerTitle,
+      status: req.status,
+      date: req.createdAt?.toDate().toLocaleString("cs-CZ") ?? "—",
+      completedBy: req.completedBy,
+      canEditIncoming: incoming && req.status === "pending",
+      canComplete: isOutgoing && req.status === "accepted",
+      // Příchozí přijaté — vlastník může jít do chatu
+      canOwnerChat: incoming && req.status === "accepted",
+      requesterId: req.requesterId,
+      ownerId: req.ownerId,
+    };
+  });
+
+  const filteredRequests = mappedRequests.filter((req) => filter === "all" || req.type === filter);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "pending":
-        return <Clock className="h-4 w-4" />;
-      case "accepted":
-        return <CheckCircle className="h-4 w-4" />;
-      case "declined":
-        return <XCircle className="h-4 w-4" />;
-      default:
-        return null;
+      case "pending": return <Clock className="h-4 w-4" />;
+      case "accepted": return <CheckCircle className="h-4 w-4" />;
+      case "declined": return <XCircle className="h-4 w-4" />;
+      default: return null;
     }
   };
 
   const getStatusVariant = (status: string): "warning" | "success" | "destructive" => {
     switch (status) {
-      case "pending":
-        return "warning";
-      case "accepted":
-        return "success";
-      case "declined":
-        return "destructive";
-      default:
-        return "warning";
+      case "pending": return "warning";
+      case "accepted": return "success";
+      case "declined": return "destructive";
+      default: return "warning";
     }
   };
 
-  const openRateFlow = (request: MockRequest) => {
+  const handleAccept = async (request: (typeof mappedRequests)[number]) => {
+    if (acceptBusy) return;
+    setAcceptBusy(request.id);
+    try {
+      await updateTradeRequestStatus(request.id, "accepted");
+      const chatId = await ensureChatForTrade(request.ownerId, request.requesterId);
+      navigate(`/chat/${chatId}`);
+    } catch (e) {
+      console.error("Accept error:", e);
+    } finally {
+      setAcceptBusy(null);
+    }
+  };
+
+  const handleDecline = async (requestId: string) => {
+    await updateTradeRequestStatus(requestId, "declined");
+  };
+
+  const openRateFlow = (request: (typeof filteredRequests)[number]) => {
     markTradeComplete(request.id);
+    if (user?.uid) {
+      void markTradeRequestCompleted(request.id, user.uid);
+    }
     if (!hasRatedTrade(request.id)) {
       setPicked(null);
       setRateTarget({
@@ -139,12 +164,16 @@ export function TradeRequests() {
     refresh();
   };
 
+  const goToChat = async (ownerId: string, requesterId: string) => {
+    const chatId = await ensureChatForTrade(ownerId, requesterId);
+    navigate(`/chat/${chatId}`);
+  };
+
   return (
     <div className="app-screen">
       <div className="sticky top-0 z-10 border-b border-border bg-background/95 pt-safe backdrop-blur">
         <div className="app-container py-4">
           <h1 className="mb-4 min-w-0">Žádosti o směnu</h1>
-
           <div className="grid min-w-0 grid-cols-3 gap-2">
             {(["all", "incoming", "outgoing"] as const).map((f) => (
               <button
@@ -165,7 +194,9 @@ export function TradeRequests() {
       </div>
 
       <div className="app-container py-4">
-        {filteredRequests.length === 0 ? (
+        {loading && <p className="mb-3 text-sm text-muted-foreground">Načítání žádostí…</p>}
+        {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
+        {!loading && filteredRequests.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <MessageCircle className="mb-4 h-16 w-16 text-muted-foreground" />
             <h3 className="mb-2">Žádné žádosti</h3>
@@ -174,7 +205,9 @@ export function TradeRequests() {
         ) : (
           <div className="space-y-3">
             {filteredRequests.map((request) => {
-              const completed = isTradeMarkedComplete(request.id);
+              const completed =
+                isTradeMarkedComplete(request.id) ||
+                (user?.uid ? request.completedBy.includes(user.uid) : false);
               const rated = hasRatedTrade(request.id);
               return (
                 <div
@@ -193,7 +226,7 @@ export function TradeRequests() {
                       <p className="mb-1 line-clamp-1 text-sm text-muted-foreground">
                         {request.offer}
                       </p>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <Badge variant={getStatusVariant(request.status)}>
                           <span className="flex items-center gap-1">
                             {getStatusIcon(request.status)}
@@ -213,25 +246,55 @@ export function TradeRequests() {
                     </div>
                   </div>
 
-                  {request.status === "pending" && request.type === "incoming" && (
+                  {/* Příchozí čekající — přijmout / odmítnout */}
+                  {request.canEditIncoming && (
                     <div className="flex min-w-0 flex-col gap-2 min-[380px]:flex-row">
-                      <Button variant="destructive" size="sm" fullWidth>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        fullWidth
+                        onClick={() => void handleDecline(request.id)}
+                      >
                         Odmítnout
                       </Button>
-                      <Button size="sm" fullWidth>
-                        Přijmout
+                      <Button
+                        size="sm"
+                        fullWidth
+                        disabled={acceptBusy === request.id}
+                        onClick={() => void handleAccept(request)}
+                      >
+                        {acceptBusy === request.id ? "Otvírám chat…" : "Přijmout a chatovat"}
                       </Button>
                     </div>
                   )}
 
+                  {/* Přijatá žádost — tlačítka akcí */}
                   {request.status === "accepted" && (
                     <div className="flex min-w-0 flex-col gap-2">
-                      {!completed && (
-                        <Button type="button" size="sm" fullWidth onClick={() => openRateFlow(request)}>
+                      {/* Do chatu — pro oba účastníky */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        fullWidth
+                        onClick={() => void goToChat(request.ownerId, request.requesterId)}
+                      >
+                        <MessageCircle className="mr-2 h-4 w-4" />
+                        Otevřít chat
+                      </Button>
+
+                      {/* Dokončit směnu — jen pro toho kdo žádost poslal */}
+                      {request.canComplete && !completed && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          fullWidth
+                          onClick={() => openRateFlow(request)}
+                        >
                           Dokončit směnu a ohodnotit
                         </Button>
                       )}
-                      {completed && !rated && (
+                      {request.canComplete && completed && !rated && (
                         <Button
                           type="button"
                           size="sm"
@@ -251,12 +314,6 @@ export function TradeRequests() {
                           Ohodnotit {request.user.name}
                         </Button>
                       )}
-                      <Link to={`/chat/seller-${request.offerId}`} className="w-full">
-                        <Button variant="outline" size="sm" fullWidth>
-                          <MessageCircle className="mr-2 h-4 w-4" />
-                          Do chatu
-                        </Button>
-                      </Link>
                     </div>
                   )}
                 </div>
@@ -291,18 +348,14 @@ export function TradeRequests() {
                   type="button"
                   onClick={() => setPicked(n)}
                   className={`rounded-xl p-2 transition-transform active:scale-95 ${
-                    picked === n
-                      ? "bg-primary/20 ring-2 ring-primary"
-                      : "hover:bg-secondary"
+                    picked === n ? "bg-primary/20 ring-2 ring-primary" : "hover:bg-secondary"
                   }`}
                   aria-pressed={picked === n}
                   aria-label={`${n} z 5 hvězd`}
                 >
                   <Star
                     className={`h-9 w-9 sm:h-10 sm:w-10 ${
-                      picked && n <= picked
-                        ? "fill-primary text-primary"
-                        : "text-muted-foreground/50"
+                      picked && n <= picked ? "fill-primary text-primary" : "text-muted-foreground/50"
                     }`}
                     strokeWidth={picked && n <= picked ? 0 : 1.5}
                   />
@@ -328,8 +381,8 @@ export function TradeRequests() {
               <p className="text-center text-xs text-muted-foreground">
                 Předchozí průměr u tohoto uživatele:{" "}
                 {getUserRatingSummary(rateTarget.peerKey)!.label} (
-                {getUserRatingSummary(rateTarget.peerKey)!.count} hodn.)
-                — po uložení se může mírně změnit.
+                {getUserRatingSummary(rateTarget.peerKey)!.count} hodn.) — po uložení se může mírně
+                změnit.
               </p>
             )}
           </div>

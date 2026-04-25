@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { ChevronLeft, Camera, Loader2 } from "lucide-react";
 import { Input } from "../components/Input";
@@ -8,7 +8,9 @@ import { Avatar } from "../components/Avatar";
 import { loadUserProfile, saveUserProfile } from "../data/userProfileStore";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { blobToDataUrl, compressImageToJpegBlob } from "../lib/imageCompress";
-import { canUseFirebaseUpload, uploadUserAsset } from "../lib/storageUpload";
+import { canUseFirebaseUpload } from "../lib/storageUpload";
+import { uploadProfileAvatar } from "../../lib/storage";
+import { getUserProfile, upsertUserProfile } from "../../lib/profile";
 
 export function EditProfile() {
   const navigate = useNavigate();
@@ -20,8 +22,27 @@ export function EditProfile() {
   const [avatarUrl, setAvatarUrl] = useState(initial.avatarUrl);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const { user, loading: authLoading } = useFirebaseAuth();
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    void (async () => {
+      try {
+        const remote = await getUserProfile(user.uid);
+        if (!remote) return;
+        setName(remote.name);
+        setEmail(remote.email || user.email || "");
+        setBio(remote.bio);
+        setLocation(remote.location);
+        setAvatarUrl(remote.avatarUrl);
+      } catch (e) {
+        console.error("Profile fetch error:", e);
+      }
+    })();
+  }, [user]);
 
   const handleAvatarChange: React.ChangeEventHandler<HTMLInputElement> = async (e) => {
     const file = e.target.files?.[0];
@@ -35,12 +56,8 @@ export function EditProfile() {
     try {
       const blob = await compressImageToJpegBlob(file, 800, 0.86);
       if (canUseFirebaseUpload() && user?.uid) {
-        const url = await uploadUserAsset({
-          userId: user.uid,
-          scope: "profile",
-          file: blob,
-          contentType: "image/jpeg",
-        });
+        const fileToUpload = new File([blob], "avatar.jpg", { type: "image/jpeg" });
+        const url = await uploadProfileAvatar(user.uid, fileToUpload);
         setAvatarUrl(url);
       } else {
         setAvatarUrl(await blobToDataUrl(blob));
@@ -52,9 +69,30 @@ export function EditProfile() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+    if (!user?.uid) {
+      setSubmitError("Pro uložení profilu se přihlaste.");
+      return;
+    }
+    setSubmitBusy(true);
+    try {
+      await upsertUserProfile(user.uid, {
+        email: email.trim(),
+        name: name.trim(),
+        bio: bio.trim(),
+        location: location.trim(),
+        avatarUrl: avatarUrl.trim(),
+      });
+    } catch (err) {
+      console.error("Profile update error:", err);
+      setSubmitError("Uložení profilu selhalo.");
+      setSubmitBusy(false);
+      return;
+    }
     saveUserProfile({ name, email, bio, location, avatarUrl });
+    setSubmitBusy(false);
     navigate("/profile");
   };
 
@@ -73,7 +111,7 @@ export function EditProfile() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="app-container space-y-6 py-6">
+      <form onSubmit={(e) => void handleSubmit(e)} className="app-container space-y-6 py-6">
         <input
           ref={fileRef}
           type="file"
@@ -144,10 +182,15 @@ export function EditProfile() {
           <Button type="button" variant="outline" fullWidth onClick={() => navigate(-1)}>
             Zrušit
           </Button>
-          <Button type="submit" fullWidth>
+          <Button type="submit" fullWidth disabled={submitBusy}>
             Uložit změny
           </Button>
         </div>
+        {submitError && (
+          <p className="text-sm text-destructive" role="alert">
+            {submitError}
+          </p>
+        )}
       </form>
     </div>
   );

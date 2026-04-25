@@ -11,13 +11,20 @@ import { loadUserOfferForm, mergeFormIntoPublicOffer } from "../data/userOfferFo
 import { isOfferLiked, toggleLikedOfferId } from "../data/swipePreferencesStore";
 import { SellerRatingDisplay } from "../components/SellerRatingDisplay";
 import { cn } from "../components/ui/utils";
+import { getOfferById } from "../../lib/offers";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { createTradeRequest } from "../../lib/trades";
+import { getUserProfile } from "../../lib/profile";
 
 export function OfferDetail() {
   const { id: routeId } = useParams();
   const id = routeId ?? "1";
   const navigate = useNavigate();
+  const { user: authUser } = useFirebaseAuth();
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showMatchModal, setShowMatchModal] = useState(false);
+  const [matchBusy, setMatchBusy] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
   const [liked, setLiked] = useState(() =>
     typeof window !== "undefined" ? isOfferLiked(id) : false,
   );
@@ -31,10 +38,68 @@ export function OfferDetail() {
     setOffer(f ? mergeFormIntoPublicOffer(f, base) : base);
     setCurrentImageIndex(0);
     setLiked(isOfferLiked(id));
+    void (async () => {
+      try {
+        const remote = await getOfferById(id);
+        if (!remote) return;
+        const sellerProfile = await getUserProfile(remote.sellerId);
+        setOffer({
+          id: remote.id,
+          sellerId: remote.sellerId,
+          title: remote.title,
+          description: remote.description,
+          wantsInReturn: remote.wantsInReturn,
+          category: remote.category,
+          location: remote.location,
+          lat: remote.lat,
+          lng: remote.lng,
+          isRemote: remote.isRemote,
+          image: remote.image || remote.images[0] || "",
+          images: remote.images,
+          tags: remote.tags,
+          attachments: remote.attachments,
+          seller: {
+            name: sellerProfile?.name?.trim() || `Uživatel ${remote.sellerId.slice(0, 6)}`,
+            avatar: sellerProfile?.avatarUrl || "",
+            bio: sellerProfile?.bio || "",
+            completedTrades: sellerProfile?.completedTrades ?? 0,
+          },
+        });
+      } catch (e) {
+        console.error("Offer detail load error:", e);
+      }
+    })();
   }, [id]);
 
-  const handleRequestTrade = () => {
-    setShowMatchModal(true);
+  const handleRequestTrade = async () => {
+    setMatchError(null);
+    if (!authUser?.uid) {
+      navigate("/sign-in");
+      return;
+    }
+    if (!offer.sellerId) {
+      setMatchError("Nelze odeslat žádost o směnu.");
+      setShowMatchModal(true);
+      return;
+    }
+    setMatchBusy(true);
+    try {
+      await createTradeRequest({
+        offerId: offer.id,
+        offerTitle: offer.title,
+        requesterId: authUser.uid,
+        requesterName: authUser.displayName || authUser.email || "Uživatel",
+        ownerId: offer.sellerId,
+        ownerName: offer.seller.name || "Uživatel",
+      });
+      setShowMatchModal(true);
+    } catch (e) {
+      console.error("Create trade request error:", e);
+      setMatchError("Žádost o směnu se nepodařilo odeslat.");
+      setShowMatchModal(true);
+    } finally {
+      setMatchBusy(false);
+    }
   };
 
   const handleToggleLike = () => {
@@ -204,9 +269,10 @@ export function OfferDetail() {
           </Button>
           <Button
             className="min-h-[48px] w-full min-w-0 min-[360px]:flex-1"
-            onClick={handleRequestTrade}
+            onClick={() => void handleRequestTrade()}
+            disabled={matchBusy}
           >
-            <span className="truncate">Požádat o směnu</span>
+            <span className="truncate">{matchBusy ? "Odesílání…" : "Požádat o směnu"}</span>
           </Button>
         </div>
       </div>
@@ -220,8 +286,12 @@ export function OfferDetail() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted text-primary">
             <MessageCircle className="h-8 w-8" />
           </div>
-          <h3 className="mb-2">Žádost odeslána uživateli {offer.seller.name}</h3>
-          <p className="mb-6 text-muted-foreground">Až odpoví, dáme vám vědět.</p>
+          <h3 className="mb-2">
+            {matchError ? "Odeslání žádosti selhalo" : `Žádost odeslána uživateli ${offer.seller.name}`}
+          </h3>
+          <p className="mb-6 text-muted-foreground">
+            {matchError ?? "Až odpoví, dáme vám vědět."}
+          </p>
           <div className="flex gap-3">
             <Button variant="outline" fullWidth onClick={() => setShowMatchModal(false)}>
               Zavřít

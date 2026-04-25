@@ -1,11 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router";
 import { Plus, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { ImageWithFallback } from "../components/ImageWithFallback";
-
-type OfferStatus = "active" | "inactive";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { getOffersBySellerId, softDeleteOffer, updateOffer, type OfferStatus } from "../../lib/offers";
 
 interface MyOfferRow {
   id: string;
@@ -17,27 +17,6 @@ interface MyOfferRow {
   requests: number;
 }
 
-const INITIAL_MY_OFFERS: MyOfferRow[] = [
-  {
-    id: "1",
-    title: "Čerstvá bio zelenina",
-    category: "Jídlo",
-    status: "active",
-    image: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400",
-    views: 42,
-    requests: 3,
-  },
-  {
-    id: "2",
-    title: "Ruční keramika",
-    category: "Ostatní",
-    status: "inactive",
-    image: "https://images.unsplash.com/photo-1610701596007-11502861dcfa?w=400",
-    views: 28,
-    requests: 1,
-  },
-];
-
 const statusPillBase =
   "inline-flex shrink-0 items-center justify-center gap-1 rounded-full border px-3 py-2 text-xs font-semibold tracking-normal touch-manipulation transition-transform select-none active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background sm:py-1.5 sm:px-2.5";
 
@@ -46,14 +25,64 @@ const statusPillActive =
 const statusPillInactive = "border-border bg-muted text-muted-foreground";
 
 export function MyOffers() {
-  const [offers, setOffers] = useState<MyOfferRow[]>(() => INITIAL_MY_OFFERS.map((o) => ({ ...o })));
+  const { user } = useFirebaseAuth();
+  const [offers, setOffers] = useState<MyOfferRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setOffers([]);
+      setLoading(false);
+      return;
+    }
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const rows = await getOffersBySellerId(user.uid);
+        setOffers(
+          rows
+            .filter((offer) => offer.status !== "deleted")
+            .map((offer) => ({
+              id: offer.id,
+              title: offer.title,
+              category: offer.category,
+              status: offer.status,
+              image: offer.image || offer.images[0] || "",
+              views: 0,
+              requests: 0,
+            }))
+        );
+      } catch (e) {
+        console.error("My offers load error:", e);
+        setError("Nabídky se nepodařilo načíst.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [user]);
 
   const toggleStatus = useCallback((id: string) => {
-    setOffers((prev) =>
-      prev.map((o) =>
-        o.id === id ? { ...o, status: o.status === "active" ? "inactive" : "active" } : o,
-      ),
-    );
+    setOffers((prev) => {
+      const target = prev.find((o) => o.id === id);
+      if (!target) return prev;
+      const nextStatus: OfferStatus = target.status === "active" ? "paused" : "active";
+      void updateOffer(id, { status: nextStatus });
+      return prev.map((o) => (o.id === id ? { ...o, status: nextStatus } : o));
+    });
+  }, []);
+
+  const deleteOffer = useCallback((id: string) => {
+    void (async () => {
+      try {
+        await softDeleteOffer(id);
+        setOffers((prev) => prev.filter((offer) => offer.id !== id));
+      } catch (e) {
+        console.error("Offer delete error:", e);
+        setError("Smazání nabídky se nezdařilo.");
+      }
+    })();
   }, []);
 
   return (
@@ -71,6 +100,8 @@ export function MyOffers() {
       </div>
 
       <div className="app-container py-4">
+        {loading && <p className="mb-3 text-sm text-muted-foreground">Načítání nabídek…</p>}
+        {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
         {offers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
@@ -154,6 +185,7 @@ export function MyOffers() {
                     <button
                       type="button"
                       className="flex min-h-[44px] flex-1 items-center justify-center gap-2 border-l border-border text-destructive transition-colors hover:bg-secondary"
+                      onClick={() => deleteOffer(offer.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                       <span className="text-sm">Smazat</span>

@@ -1,22 +1,30 @@
-import { useMemo, useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { ChevronLeft, Heart } from "lucide-react";
 import { ImageWithFallback } from "../components/ImageWithFallback";
 import { Badge } from "../components/Badge";
-import { getBarterOfferById } from "../data/barterOffers";
 import { loadLikedIds, saveLikedIds } from "../data/swipePreferencesStore";
+import { getOfferById, type BarterOffer } from "../../lib/offers";
 
 export function SavedOffers() {
   const navigate = useNavigate();
   const [likedIds, setLikedIds] = useState<string[]>(() => loadLikedIds());
+  const [offers, setOffers] = useState<BarterOffer[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const offers = useMemo(
-    () =>
-      likedIds
-        .map((id) => getBarterOfferById(id))
-        .filter((o): o is NonNullable<typeof o> => o != null),
-    [likedIds]
-  );
+  useEffect(() => {
+    if (likedIds.length === 0) {
+      setOffers([]);
+      setLoading(false);
+      return;
+    }
+    void (async () => {
+      setLoading(true);
+      const results = await Promise.all(likedIds.map((id) => getOfferById(id)));
+      setOffers(results.filter((o): o is BarterOffer => o != null && o.status !== "deleted"));
+      setLoading(false);
+    })();
+  }, [likedIds]);
 
   const removeLike = useCallback((id: string) => {
     setLikedIds((prev) => {
@@ -25,6 +33,8 @@ export function SavedOffers() {
       return next;
     });
   }, []);
+
+  const notFoundCount = likedIds.length - offers.length;
 
   return (
     <div className="app-screen pb-[var(--app-bottom-nav)]">
@@ -44,7 +54,9 @@ export function SavedOffers() {
       </div>
 
       <div className="app-container py-4">
-        {offers.length === 0 ? (
+        {loading ? (
+          <div className="py-16 text-center text-sm text-muted-foreground">Načítání…</div>
+        ) : offers.length === 0 ? (
           <div className="flex flex-col items-center justify-center px-2 py-16 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
               <Heart className="h-8 w-8 text-muted-foreground" strokeWidth={1.75} />
@@ -70,7 +82,7 @@ export function SavedOffers() {
                 <Link to={`/offer/${offer.id}`} className="flex gap-3 p-3">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-muted">
                     <ImageWithFallback
-                      src={offer.image}
+                      src={offer.image || offer.images?.[0] || ""}
                       alt={offer.title}
                       className="h-full w-full object-cover"
                     />
@@ -97,9 +109,9 @@ export function SavedOffers() {
           </ul>
         )}
 
-        {likedIds.length > offers.length && (
+        {!loading && notFoundCount > 0 && (
           <p className="mt-4 text-center text-xs text-muted-foreground">
-            Některé uložené nabídky už nejsou v katalogu ({likedIds.length - offers.length}).
+            Některé uložené nabídky už nejsou dostupné ({notFoundCount}).
           </p>
         )}
       </div>

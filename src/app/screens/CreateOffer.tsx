@@ -1,7 +1,7 @@
-import { useState, useLayoutEffect, useRef } from "react";
+import { useState, useLayoutEffect, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
 import { ChevronLeft, Upload, X, Paperclip, FileText, Loader2 } from "lucide-react";
-import { loadUserOfferForm, saveUserOfferForm } from "../data/userOfferForms";
+import { clearUserOfferForm, loadUserOfferForm, saveUserOfferForm } from "../data/userOfferForms";
 import type { OfferAttachment } from "../data/barterOffers";
 import { Input } from "../components/Input";
 import { Textarea } from "../components/Textarea";
@@ -9,6 +9,8 @@ import { Button } from "../components/Button";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { blobToDataUrl, compressImageToJpegBlob } from "../lib/imageCompress";
 import { canUseFirebaseUpload, uploadUserAsset } from "../lib/storageUpload";
+import { createOffer, getOfferById, updateOffer } from "../../lib/offers";
+import { getUserProfile } from "../../lib/profile";
 
 const CATEGORIES = ["Jídlo", "Služby", "Elektronika", "Ostatní"];
 const MAX_IMAGES = 5;
@@ -33,6 +35,8 @@ export function CreateOffer() {
   const [attachments, setAttachments] = useState<OfferAttachment[]>([]);
   const [uploadBusy, setUploadBusy] = useState<"photo" | "attach" | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const storageFolder = id ?? "draft";
 
@@ -49,6 +53,42 @@ export function CreateOffer() {
     setImages([...data.images]);
     setAttachments([...(data.attachments ?? [])]);
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    const draft = loadUserOfferForm(id);
+    if (draft) return;
+    void (async () => {
+      try {
+        const remote = await getOfferById(id);
+        if (!remote) return;
+        setTitle(remote.title);
+        setDescription(remote.description);
+        setWantsInReturn(remote.wantsInReturn);
+        setCategory(remote.category);
+        setTags(remote.tags.join(", "));
+        setLocation(remote.location);
+        setImages([...remote.images]);
+        setAttachments([...(remote.attachments ?? [])]);
+      } catch (e) {
+        console.error("Offer load error:", e);
+      }
+    })();
+  }, [id]);
+
+  useEffect(() => {
+    const draftId = id ?? "draft";
+    saveUserOfferForm(draftId, {
+      title,
+      description,
+      wantsInReturn,
+      category,
+      tags,
+      location,
+      images,
+      attachments,
+    });
+  }, [id, title, description, wantsInReturn, category, tags, location, images, attachments]);
 
   async function addImageFromFile(file: File) {
     setUploadError(null);
@@ -152,24 +192,61 @@ export function CreateOffer() {
     e.target.value = "";
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (id) {
-      saveUserOfferForm(id, {
-        title,
-        description,
-        wantsInReturn,
-        category,
-        tags,
-        location,
+    setSubmitError(null);
+    if (!user?.uid) {
+      setSubmitError("Pro publikování nabídky se nejdřív přihlaste.");
+      return;
+    }
+    setSubmitBusy(true);
+    try {
+      const sellerProfile = await getUserProfile(user.uid);
+      const sellerName =
+        sellerProfile?.name?.trim() ||
+        user.displayName?.trim() ||
+        user.email?.split("@")[0]?.trim() ||
+        "";
+      const payload = {
+        title: title.trim(),
+        description: description.trim(),
+        wantsInReturn: wantsInReturn.trim(),
+        category: category.trim(),
+        location: location.trim(),
+        isRemote: false,
+        image: images[0] ?? "",
         images,
         attachments,
-      });
+        tags: tags
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+        sellerId: user.uid,
+        sellerName,
+        sellerAvatar: sellerProfile?.avatarUrl || user.photoURL || "",
+      };
+
+      if (id) {
+        await updateOffer(id, payload);
+        clearUserOfferForm(id);
+      } else {
+        const newId = await createOffer(payload);
+        clearUserOfferForm("draft");
+        if (newId) {
+          navigate("/my-offers");
+          return;
+        }
+      }
+      navigate("/my-offers");
+    } catch (err) {
+      console.error("Offer save error:", err);
+      setSubmitError("Uložení nabídky se nezdařilo.");
+    } finally {
+      setSubmitBusy(false);
     }
-    navigate("/my-offers");
   };
 
-  const busy = uploadBusy !== null || authLoading;
+  const busy = uploadBusy !== null || authLoading || submitBusy;
 
   return (
     <div className="app-screen">
@@ -188,7 +265,7 @@ export function CreateOffer() {
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="app-container space-y-6 py-6">
+      <form onSubmit={(e) => void handleSubmit(e)} className="app-container space-y-6 py-6">
         <input
           ref={photoInputRef}
           type="file"
@@ -289,6 +366,11 @@ export function CreateOffer() {
         {uploadError && (
           <p className="text-sm text-destructive" role="alert">
             {uploadError}
+          </p>
+        )}
+        {submitError && (
+          <p className="text-sm text-destructive" role="alert">
+            {submitError}
           </p>
         )}
 

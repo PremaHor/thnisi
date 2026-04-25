@@ -1,22 +1,70 @@
-import { signOut } from "firebase/auth";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { Edit2, Settings, LogOut, FileText, Shield } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { CURRENT_RATER_ID, getUserRatingSummary } from "../data/ratingsStore";
-import { loadUserProfile } from "../data/userProfileStore";
-import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
+import { useFirebase } from "../contexts/FirebaseContext";
+import { logout } from "../../lib/auth";
+import { getUserProfile } from "../../lib/profile";
+import { getOffersBySellerId } from "../../lib/offers";
 
 const MOCK_STATS = {
-  completedTrades: 12,
-  activeOffers: 3,
+  completedTrades: 0,
+  activeOffers: 0,
   memberSince: "leden 2026",
 };
 
 export function Profile() {
   const navigate = useNavigate();
+  const { user: authUser } = useFirebase();
   const ownRating = getUserRatingSummary(CURRENT_RATER_ID);
-  const user = loadUserProfile();
+  const [profile, setProfile] = useState({
+    name: "",
+    email: authUser?.email ?? "",
+    bio: "",
+    location: "",
+    avatarUrl: "",
+    completedTrades: 0,
+  });
+  const [activeOffers, setActiveOffers] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!authUser?.uid) {
+      setLoading(false);
+      return;
+    }
+    void (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [userProfile, sellerOffers] = await Promise.all([
+          getUserProfile(authUser.uid),
+          getOffersBySellerId(authUser.uid),
+        ]);
+        if (userProfile) {
+          setProfile({
+            name: userProfile.name,
+            email: userProfile.email || authUser.email || "",
+            bio: userProfile.bio,
+            location: userProfile.location,
+            avatarUrl: userProfile.avatarUrl,
+            completedTrades: userProfile.completedTrades,
+          });
+        } else {
+          setProfile((prev) => ({ ...prev, email: authUser.email || prev.email }));
+        }
+        setActiveOffers(sellerOffers.filter((offer) => offer.status === "active").length);
+      } catch (e) {
+        console.error("Profile load error:", e);
+        setError("Profil se nepodařilo načíst.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [authUser]);
 
   return (
     <div className="app-screen">
@@ -29,14 +77,14 @@ export function Profile() {
       <div className="app-container space-y-6 py-6">
         {/* User info */}
         <div className="flex flex-col items-center text-center">
-          <Avatar size="xl" className="mb-4" src={user.avatarUrl || undefined} />
-          <h2 className="mb-1">{user.name}</h2>
-          <p className="text-muted-foreground mb-1">{user.email}</p>
-          {user.location ? (
-            <p className="text-sm text-muted-foreground mb-1">{user.location}</p>
+          <Avatar size="xl" className="mb-4" src={profile.avatarUrl || undefined} />
+          <h2 className="mb-1">{profile.name || "Uživatel"}</h2>
+          <p className="text-muted-foreground mb-1">{profile.email}</p>
+          {profile.location ? (
+            <p className="text-sm text-muted-foreground mb-1">{profile.location}</p>
           ) : null}
-          {user.bio && (
-            <p className="text-sm text-muted-foreground mb-3">{user.bio}</p>
+          {profile.bio && (
+            <p className="text-sm text-muted-foreground mb-3">{profile.bio}</p>
           )}
           <Link to="/profile/edit">
             <Button variant="outline" size="sm">
@@ -49,11 +97,11 @@ export function Profile() {
         {/* Stats */}
         <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
-            <div className="mb-1">{MOCK_STATS.completedTrades}</div>
+            <div className="mb-1">{profile.completedTrades ?? MOCK_STATS.completedTrades}</div>
             <p className="text-xs text-muted-foreground">Dokončené směny</p>
           </div>
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
-            <div className="mb-1">{MOCK_STATS.activeOffers}</div>
+            <div className="mb-1">{activeOffers}</div>
             <p className="text-xs text-muted-foreground">Aktivní nabídky</p>
           </div>
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
@@ -100,13 +148,7 @@ export function Profile() {
             type="button"
             onClick={() => {
               void (async () => {
-                if (isFirebaseConfigured()) {
-                  try {
-                    await signOut(getFirebaseAuth());
-                  } catch {
-                    /* ignoruj */
-                  }
-                }
+                await logout();
                 navigate("/sign-in");
               })();
             }}
@@ -120,6 +162,8 @@ export function Profile() {
         <p className="text-center text-xs text-muted-foreground">
           Členem od {MOCK_STATS.memberSince}
         </p>
+        {loading && <p className="text-center text-xs text-muted-foreground">Načítání profilu…</p>}
+        {error && <p className="text-center text-xs text-destructive">{error}</p>}
       </div>
     </div>
   );

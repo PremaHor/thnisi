@@ -1,11 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { AppLogo } from "../components/AppLogo";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
 import { mapFirebaseAuthError, MIN_PASSWORD_LENGTH } from "../lib/firebaseAuthErrors";
+import { registerWithEmail } from "../../lib/auth";
 
 export function SignUp() {
   const navigate = useNavigate();
@@ -39,22 +38,13 @@ export function SignUp() {
       setErrors(newErrors);
       return;
     }
-    if (!isFirebaseConfigured()) {
-      setFormError("Firebase není nakonfigurován (proměnné VITE_FIREBASE_*).");
-      return;
-    }
-
     setErrors({});
     setBusy(true);
     try {
-      const auth = getFirebaseAuth();
-      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
-      const display = name.trim().slice(0, 80);
-      if (display) {
-        await updateProfile(cred.user, { displayName: display });
-      }
+      await registerWithEmail(email.trim(), password);
       navigate("/");
     } catch (err) {
+      console.error("Email registration error:", err);
       setFormError(mapFirebaseAuthError(err));
     } finally {
       setBusy(false);

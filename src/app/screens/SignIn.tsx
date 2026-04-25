@@ -1,15 +1,10 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
-import {
-  signInWithEmailAndPassword,
-  GoogleAuthProvider,
-  signInWithPopup,
-} from "firebase/auth";
 import { AppLogo } from "../components/AppLogo";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
 import { mapFirebaseAuthError } from "../lib/firebaseAuthErrors";
+import { loginWithEmail, signInWithGoogle } from "../../lib/auth";
 
 function GoogleGIcon({ className }: { className?: string }) {
   return (
@@ -44,17 +39,12 @@ export function SignIn() {
 
   const handleGoogleSignIn = async () => {
     setFormError(null);
-    if (!isFirebaseConfigured()) {
-      setFormError("Firebase není nakonfigurován (proměnné VITE_FIREBASE_*).");
-      return;
-    }
     setBusy(true);
     try {
-      const auth = getFirebaseAuth();
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      await signInWithGoogle();
       navigate("/");
     } catch (e) {
+      console.error("Google sign-in error:", e);
       setFormError(mapFirebaseAuthError(e));
     } finally {
       setBusy(false);
@@ -73,18 +63,13 @@ export function SignIn() {
       setErrors(newErrors);
       return;
     }
-    if (!isFirebaseConfigured()) {
-      setFormError("Firebase není nakonfigurován (proměnné VITE_FIREBASE_*).");
-      return;
-    }
-
     setErrors({});
     setBusy(true);
     try {
-      const auth = getFirebaseAuth();
-      await signInWithEmailAndPassword(auth, email.trim(), password);
+      await loginWithEmail(email.trim(), password);
       navigate("/");
     } catch (err) {
+      console.error("Email sign-in error:", err);
       setFormError(mapFirebaseAuthError(err));
     } finally {
       setBusy(false);

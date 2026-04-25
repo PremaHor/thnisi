@@ -1,5 +1,8 @@
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, Link } from "react-router";
 import { Home, Plus, MessageCircle, ShoppingBag, User } from "lucide-react";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { subscribePendingIncomingCount } from "../../lib/trades";
 
 function isNavActive(path: string, pathname: string): boolean {
   if (path === "/") {
@@ -21,12 +24,26 @@ function isNavActive(path: string, pathname: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
+function usePendingTradeCount(): number {
+  const { user } = useFirebaseAuth();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.uid) { setCount(0); return; }
+    const unsub = subscribePendingIncomingCount(user.uid, setCount);
+    return unsub;
+  }, [user?.uid]);
+
+  return count;
+}
+
 export function RootLayout() {
   const location = useLocation();
+  const pendingTrades = usePendingTradeCount();
 
   const navItems = [
     { path: "/", icon: Home, label: "Objevuj" },
-    { path: "/my-offers", icon: ShoppingBag, label: "Moje" },
+    { path: "/my-offers", icon: ShoppingBag, label: "Moje", badge: pendingTrades },
     { path: "/create", icon: Plus, label: "Nová" },
     { path: "/chats", icon: MessageCircle, label: "Chaty" },
     { path: "/profile", icon: User, label: "Já" },
@@ -59,6 +76,7 @@ export function RootLayout() {
               const Icon = item.icon;
               const isActive = isNavActive(item.path, location.pathname);
               const isCreate = item.path === "/create";
+              const badge = "badge" in item ? item.badge : 0;
 
               if (isCreate) {
                 return (
@@ -88,12 +106,19 @@ export function RootLayout() {
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
-                  <div
-                    className={`mb-0.5 flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
-                      isActive ? "bg-primary/12 text-primary" : "bg-transparent text-foreground"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" strokeWidth={isActive ? 2.25 : 2} />
+                  <div className="relative mb-0.5">
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                        isActive ? "bg-primary/12 text-primary" : "bg-transparent text-foreground"
+                      }`}
+                    >
+                      <Icon className="h-5 w-5" strokeWidth={isActive ? 2.25 : 2} />
+                    </div>
+                    {badge > 0 && (
+                      <span className="absolute -right-1 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-white">
+                        {badge > 9 ? "9+" : badge}
+                      </span>
+                    )}
                   </div>
                   <span className="max-w-full truncate text-center">{item.label}</span>
                 </Link>

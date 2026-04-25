@@ -159,6 +159,15 @@ export function saveUserOfferForm(offerId: string, data: UserOfferFormData): voi
   }
 }
 
+export function clearUserOfferForm(offerId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STORAGE_PREFIX + offerId);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** Převezme data z editovacího formuláře, zachová např. profil nabízejícího z veřejného záznamu. */
 export function mergeFormIntoPublicOffer(
   f: UserOfferFormData,
