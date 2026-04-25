@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, Link } from "react-router";
 import { Home, Plus, MessageCircle, ShoppingBag, User } from "lucide-react";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
@@ -24,13 +24,53 @@ function isNavActive(path: string, pathname: string): boolean {
   return pathname === path || pathname.startsWith(`${path}/`);
 }
 
+function requestNotificationPermission() {
+  if (typeof window === "undefined") return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission === "default") {
+    void Notification.requestPermission();
+  }
+}
+
+function showTradeNotification(count: number) {
+  if (typeof window === "undefined") return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  const n = new Notification("TrhniSi — nová žádost o směnu", {
+    body: count === 1
+      ? "Někdo má zájem o tvoji nabídku. Otevři Žádosti."
+      : `Máš ${count} nových žádostí o směnu.`,
+    icon: "/app-icon-192.png",
+    badge: "/app-icon-192.png",
+    tag: "trade-request",
+    renotify: true,
+  });
+  n.onclick = () => {
+    window.focus();
+    n.close();
+  };
+}
+
 function usePendingTradeCount(): number {
   const { user } = useFirebaseAuth();
   const [count, setCount] = useState(0);
+  const prevCount = useRef<number | null>(null);
+
+  // Požádej o povolení notifikací při přihlášení
+  useEffect(() => {
+    if (user?.uid) requestNotificationPermission();
+  }, [user?.uid]);
 
   useEffect(() => {
-    if (!user?.uid) { setCount(0); return; }
-    const unsub = subscribePendingIncomingCount(user.uid, setCount);
+    if (!user?.uid) { setCount(0); prevCount.current = null; return; }
+    const unsub = subscribePendingIncomingCount(user.uid, (newCount) => {
+      setCount(newCount);
+      // Zobraz notifikaci jen když přibylo (ne při prvním načtení)
+      if (prevCount.current !== null && newCount > prevCount.current) {
+        showTradeNotification(newCount);
+      }
+      prevCount.current = newCount;
+    });
     return unsub;
   }, [user?.uid]);
 
