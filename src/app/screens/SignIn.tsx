@@ -4,7 +4,7 @@ import { AppLogo } from "../components/AppLogo";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
 import { mapFirebaseAuthError } from "../lib/firebaseAuthErrors";
-import { loginWithEmail, signInWithGoogle } from "../../lib/auth";
+import { loginWithEmail, signInWithGoogle, resetPassword } from "../../lib/auth";
 
 function GoogleGIcon({ className }: { className?: string }) {
   return (
@@ -36,6 +36,26 @@ export function SignIn() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+
+  const handleResetPassword = async () => {
+    const trimmed = email.trim();
+    if (!trimmed) {
+      setErrors((e) => ({ ...e, email: "Zadejte e-mail pro reset hesla" }));
+      return;
+    }
+    setResetBusy(true);
+    setFormError(null);
+    try {
+      await resetPassword(trimmed);
+      setResetSent(true);
+    } catch (err) {
+      setFormError(mapFirebaseAuthError(err));
+    } finally {
+      setResetBusy(false);
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     setFormError(null);
@@ -143,12 +163,20 @@ export function SignIn() {
             disabled={busy}
           />
 
-          <button
-            type="button"
-            className="text-sm text-link hover:text-link-hover hover:underline"
-          >
-            Zapomněli jste heslo?
-          </button>
+          {resetSent ? (
+            <p className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-800 dark:bg-green-950/40 dark:text-green-400">
+              Email s odkazem na reset hesla byl odeslán.
+            </p>
+          ) : (
+            <button
+              type="button"
+              disabled={resetBusy}
+              onClick={() => void handleResetPassword()}
+              className="text-sm text-link hover:text-link-hover hover:underline disabled:opacity-50"
+            >
+              {resetBusy ? "Odesílám…" : "Zapomněli jste heslo?"}
+            </button>
+          )}
 
           <Button type="submit" fullWidth disabled={busy}>
             {busy ? "Přihlašování…" : "Přihlásit se"}
