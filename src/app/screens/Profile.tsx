@@ -93,7 +93,7 @@ export function Profile() {
         {/* Stats */}
         <div className="grid min-w-0 grid-cols-3 gap-2 sm:gap-3">
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
-            <div className="mb-1">{profile.completedTrades ?? MOCK_STATS.completedTrades}</div>
+            <div className="mb-1">{profile.completedTrades ?? 0}</div>
             <p className="text-xs text-muted-foreground">Dokončené směny</p>
           </div>
           <div className="bg-card border border-border rounded-lg p-3 text-center sm:p-4">
@@ -155,9 +155,6 @@ export function Profile() {
           </button>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground">
-          Členem od {MOCK_STATS.memberSince}
-        </p>
         {loading && <p className="text-center text-xs text-muted-foreground">Načítání profilu…</p>}
         {error && <p className="text-center text-xs text-destructive">{error}</p>}
       </div>
