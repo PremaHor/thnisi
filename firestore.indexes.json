@@ -39,7 +39,24 @@
         { "fieldPath": "requesterId", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "ratings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "ratedUserId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "ratings",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "raterId", "order": "ASCENDING" },
+        { "fieldPath": "tradeId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
 }
+

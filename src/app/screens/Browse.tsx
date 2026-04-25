@@ -20,6 +20,7 @@ import {
 import { getActiveOffers } from "../../lib/offers";
 import { getUserProfile } from "../../lib/profile";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { saveOffer, unsaveOffer, getSavedOfferIds } from "../../lib/savedOffers";
 
 const CATEGORIES = ["Vše", "Jídlo", "Služby", "Elektronika", "Ostatní"];
 
@@ -37,6 +38,17 @@ export function Browse() {
   const [selectedCategory, setSelectedCategory] = useState("Vše");
   const [passedIds, setPassedIds] = useState<string[]>(() => loadPassedIds());
   const [likedIds, setLikedIds] = useState<string[]>(() => loadLikedIds());
+
+  // Sync liked IDs from Firestore when user is logged in
+  useEffect(() => {
+    if (!user?.uid) return;
+    void getSavedOfferIds(user.uid).then((ids) => {
+      if (ids.length > 0) {
+        setLikedIds(ids);
+        saveLikedIds(ids);
+      }
+    });
+  }, [user?.uid]);
   const [swipeHistory, setSwipeHistory] = useState<SwipeAction[]>([]);
   const [locationSettings, setLocationSettings] = useState<LocationSettings>(() =>
     loadLocationSettings()
@@ -195,6 +207,7 @@ export function Browse() {
         if (a.includes(top.id)) return a;
         const n = [...a, top.id];
         savePassedIds(n);
+        if (user?.uid) void unsaveOffer(user.uid, top.id);
         return n;
       });
     } else {
@@ -202,6 +215,7 @@ export function Browse() {
         const without = a.filter((id) => id !== top.id);
         const n = [...without, top.id];
         saveLikedIds(n);
+        if (user?.uid) void saveOffer(user.uid, top.id);
         return n;
       });
     }

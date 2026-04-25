@@ -3,36 +3,47 @@ import { Link, useNavigate } from "react-router";
 import { ChevronLeft, Heart } from "lucide-react";
 import { ImageWithFallback } from "../components/ImageWithFallback";
 import { Badge } from "../components/Badge";
-import { loadLikedIds, saveLikedIds } from "../data/swipePreferencesStore";
 import { getOfferById, type BarterOffer } from "../../lib/offers";
+import { getSavedOfferIds, unsaveOffer } from "../../lib/savedOffers";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { loadLikedIds } from "../data/swipePreferencesStore";
 
 export function SavedOffers() {
   const navigate = useNavigate();
-  const [likedIds, setLikedIds] = useState<string[]>(() => loadLikedIds());
+  const { user } = useFirebaseAuth();
+  const [likedIds, setLikedIds] = useState<string[]>([]);
   const [offers, setOffers] = useState<BarterOffer[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Načti IDs — z Firestore pokud přihlášen, jinak localStorage
   useEffect(() => {
-    if (likedIds.length === 0) {
-      setOffers([]);
-      setLoading(false);
-      return;
-    }
     void (async () => {
       setLoading(true);
-      const results = await Promise.all(likedIds.map((id) => getOfferById(id)));
+      let ids: string[];
+      if (user?.uid) {
+        ids = await getSavedOfferIds(user.uid);
+      } else {
+        ids = loadLikedIds();
+      }
+      setLikedIds(ids);
+      if (ids.length === 0) {
+        setOffers([]);
+        setLoading(false);
+        return;
+      }
+      const results = await Promise.all(ids.map((id) => getOfferById(id)));
       setOffers(results.filter((o): o is BarterOffer => o != null && o.status !== "deleted"));
       setLoading(false);
     })();
-  }, [likedIds]);
+  }, [user?.uid]);
 
   const removeLike = useCallback((id: string) => {
-    setLikedIds((prev) => {
-      const next = prev.filter((x) => x !== id);
-      saveLikedIds(next);
-      return next;
-    });
-  }, []);
+    setLikedIds((prev) => prev.filter((x) => x !== id));
+    setOffers((prev) => prev.filter((o) => o.id !== id));
+    if (user?.uid) {
+      void unsaveOffer(user.uid, id);
+    }
+  }, [user?.uid]);
 
   const notFoundCount = likedIds.length - offers.length;
 

@@ -3,22 +3,16 @@ import { Link, useNavigate } from "react-router";
 import { Edit2, Settings, LogOut, FileText, Shield } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
-import { CURRENT_RATER_ID, getUserRatingSummary } from "../data/ratingsStore";
 import { useFirebase } from "../contexts/FirebaseContext";
 import { logout } from "../../lib/auth";
 import { getUserProfile } from "../../lib/profile";
 import { getOffersBySellerId } from "../../lib/offers";
-
-const MOCK_STATS = {
-  completedTrades: 0,
-  activeOffers: 0,
-  memberSince: "leden 2026",
-};
+import { getRatingSummaryForUser, type RatingSummary } from "../../lib/ratings";
 
 export function Profile() {
   const navigate = useNavigate();
   const { user: authUser } = useFirebase();
-  const ownRating = getUserRatingSummary(CURRENT_RATER_ID);
+  const [ownRating, setOwnRating] = useState<RatingSummary | null>(null);
   const [profile, setProfile] = useState({
     name: "",
     email: authUser?.email ?? "",
@@ -40,10 +34,12 @@ export function Profile() {
       setLoading(true);
       setError(null);
       try {
-        const [userProfile, sellerOffers] = await Promise.all([
+        const [userProfile, sellerOffers, ratingSummary] = await Promise.all([
           getUserProfile(authUser.uid),
           getOffersBySellerId(authUser.uid),
+          getRatingSummaryForUser(authUser.uid),
         ]);
+        setOwnRating(ratingSummary);
         if (userProfile) {
           setProfile({
             name: userProfile.name,

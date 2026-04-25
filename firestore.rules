@@ -166,6 +166,31 @@ service cloud.firestore {
       match /hiddenChats/{chatId} {
         allow read, write: if isAuthed() && request.auth.uid == userId;
       }
+
+      /** Uložené nabídky uživatele (swipe doprava). */
+      match /savedOffers/{offerId} {
+        allow read, write: if isAuthed() && request.auth.uid == userId;
+      }
+    }
+
+    // ─────────────────────────────────────────────
+    // RATINGS
+    // ─────────────────────────────────────────────
+
+    match /ratings/{ratingId} {
+      allow read: if isAuthed();
+      allow create: if isAuthed()
+        && request.resource.data.raterId == request.auth.uid
+        && request.resource.data.ratedUserId is string
+        && request.resource.data.ratedUserId != request.auth.uid
+        && request.resource.data.tradeId is string
+        && request.resource.data.score is number
+        && request.resource.data.score >= 1
+        && request.resource.data.score <= 5
+        && request.resource.data.keys().hasOnly([
+          'raterId', 'ratedUserId', 'tradeId', 'score', 'createdAt'
+        ]);
+      allow update, delete: if false;
     }
 
     // ─────────────────────────────────────────────

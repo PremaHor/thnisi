@@ -5,13 +5,7 @@ import { Avatar } from "../components/Avatar";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { Modal } from "../components/Modal";
-import {
-  getUserRatingSummary,
-  hasRatedTrade,
-  isTradeMarkedComplete,
-  markTradeComplete,
-  submitTradeRating,
-} from "../data/ratingsStore";
+import { submitRating, hasUserRatedTrade } from "../../lib/ratings";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import {
   ensureChatForTrade,
@@ -41,13 +35,14 @@ const STATUS_LABELS: Record<string, string> = {
 export function TradeRequests() {
   const { user } = useFirebaseAuth();
   const navigate = useNavigate();
-  const [, setRerender] = useState(0);
   const [filter, setFilter] = useState<"all" | "incoming" | "outgoing">("all");
   const [requests, setRequests] = useState<TradeRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [acceptBusy, setAcceptBusy] = useState<string | null>(null);
-  const refresh = useCallback(() => setRerender((n) => n + 1), []);
+  // tradeId → already rated
+  const [ratedTrades, setRatedTrades] = useState<Set<string>>(new Set());
+  const refresh = useCallback(() => {}, []);
 
   const [rateTarget, setRateTarget] = useState<{
     tradeId: string;
@@ -69,6 +64,17 @@ export function TradeRequests() {
         setRequests(rows);
         setLoading(false);
         setError(null);
+        // pro přijaté žádosti zkontroluj Firestore jestli jsi už hodnotil
+        const accepted = rows.filter((r) => r.status === "accepted");
+        if (accepted.length > 0) {
+          void Promise.all(
+            accepted.map((r) => hasUserRatedTrade(user.uid, r.id))
+          ).then((results) => {
+            const s = new Set<string>();
+            accepted.forEach((r, i) => { if (results[i]) s.add(r.id); });
+            setRatedTrades(s);
+          });
+        }
       },
       () => {
         setError("Žádosti o směnu se nepodařilo načíst.");
@@ -141,11 +147,10 @@ export function TradeRequests() {
   };
 
   const openRateFlow = (request: (typeof filteredRequests)[number]) => {
-    markTradeComplete(request.id);
     if (user?.uid) {
       void markTradeRequestCompleted(request.id, user.uid);
     }
-    if (!hasRatedTrade(request.id)) {
+    if (!ratedTrades.has(request.id)) {
       setPicked(null);
       setRateTarget({
         tradeId: request.id,
@@ -153,15 +158,15 @@ export function TradeRequests() {
         peerKey: request.peerRatingKey,
       });
     }
-    refresh();
   };
 
   const submitPick = () => {
-    if (!rateTarget || !picked) return;
-    submitTradeRating(rateTarget.tradeId, rateTarget.peerKey, picked);
+    if (!rateTarget || !picked || !user?.uid) return;
+    void submitRating(user.uid, rateTarget.peerKey, rateTarget.tradeId, picked).then(() => {
+      setRatedTrades((prev) => new Set([...prev, rateTarget.tradeId]));
+    });
     setRateTarget(null);
     setPicked(null);
-    refresh();
   };
 
   const goToChat = async (ownerId: string, requesterId: string) => {
@@ -205,10 +210,10 @@ export function TradeRequests() {
         ) : (
           <div className="space-y-3">
             {filteredRequests.map((request) => {
-              const completed =
-                isTradeMarkedComplete(request.id) ||
-                (user?.uid ? request.completedBy.includes(user.uid) : false);
-              const rated = hasRatedTrade(request.id);
+              const completed = user?.uid
+                ? request.completedBy.includes(user.uid)
+                : false;
+              const rated = ratedTrades.has(request.id);
               return (
                 <div
                   key={request.id}
