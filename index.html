@@ -90,7 +90,53 @@
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Statický obsah pro crawlery a AI parsery (nahrazen Reactem po načtení JS) -->
+      <header>
+        <nav aria-label="Hlavní navigace">
+          <a href="/">TrhniSi — Domů</a>
+          <a href="/sign-in">Přihlásit se</a>
+          <a href="/sign-up">Registrace</a>
+        </nav>
+        <h1>TrhniSi — směna zboží a služeb</h1>
+      </header>
+      <main>
+        <section aria-label="O aplikaci">
+          <h2>Bartring bez peněz</h2>
+          <p>
+            TrhniSi je česká směnná platforma, kde nabídnete to, co nepotřebujete,
+            a získáte zpět co potřebujete — bez hotovosti. Procházejte nabídky,
+            swipujte, domluvte se v chatu a vyměňte si zboží nebo služby přímo s lidmi
+            z vašeho okolí.
+          </p>
+        </section>
+        <section aria-label="Jak to funguje">
+          <h2>Jak to funguje?</h2>
+          <ol>
+            <li>Vytvořte nabídku — přidejte foto, popis a co chcete na oplátku.</li>
+            <li>Procházejte nabídky — swipujte doprava co se vám líbí.</li>
+            <li>Domluvte se — realtime chat přímo s protistranou.</li>
+            <li>Vyměňte — potvrďte dokončení a ohodnoťte protistranu.</li>
+          </ol>
+        </section>
+        <section aria-label="Kategorie">
+          <h2>Kategorie nabídek</h2>
+          <ul>
+            <li>Jídlo a potraviny</li>
+            <li>Služby a dovednosti</li>
+            <li>Elektronika</li>
+            <li>Ostatní zboží</li>
+          </ul>
+        </section>
+      </main>
+      <footer>
+        <nav aria-label="Právní informace">
+          <a href="/terms">Podmínky služby</a>
+          <a href="/privacy">Zásady ochrany osobních údajů</a>
+        </nav>
+        <p>© 2026 TrhniSi. Bartring pro každého.</p>
+      </footer>
+    </div>
     <nav class="static-legal-skip" aria-hidden="true">
       <a href="/privacy">Zásady ochrany osobních údajů</a>
       <a href="/terms">Podmínky služby</a>
