@@ -1,8 +1,11 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    /** Veřejné čtení URL (token v odkazu); zápis jen vlastní složka uploads/{uid}/ */
-    match /uploads/{userId}/{allPaths=**} {
+    /**
+     * Nabídkové obrázky a přílohy — veřejné čtení kvůli zobrazení v katalogu.
+     * Zápis jen vlastní složka, typ a velikost omezeny.
+     */
+    match /uploads/{userId}/offers/{allPaths=**} {
       allow read: if true;
       allow write: if request.auth != null
         && request.auth.uid == userId
@@ -11,6 +14,17 @@ service firebase.storage {
           request.resource.contentType.matches('image/.*')
           || request.resource.contentType == 'application/pdf'
         );
+    }
+
+    /**
+     * Avatar v profilu — stejný model (veřejné čtení v UI).
+     */
+    match /uploads/{userId}/profile/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
     }
   }
 }

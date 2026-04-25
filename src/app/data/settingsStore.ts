@@ -107,7 +107,7 @@ export function clearAllLocalData(): void {
     const keys: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith("trhnisi:")) keys.push(k);
+      if (k && (k.startsWith("trhnisi:") || k.startsWith("barter:"))) keys.push(k);
     }
     keys.forEach((k) => localStorage.removeItem(k));
   } catch {

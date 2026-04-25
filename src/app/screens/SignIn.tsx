@@ -1,8 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
 import { AppLogo } from "../components/AppLogo";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
+import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
+import { mapFirebaseAuthError } from "../lib/firebaseAuthErrors";
 
 function GoogleGIcon({ className }: { className?: string }) {
   return (
@@ -32,14 +39,32 @@ export function SignIn() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const handleGoogleSignIn = () => {
-    navigate("/");
+  const handleGoogleSignIn = async () => {
+    setFormError(null);
+    if (!isFirebaseConfigured()) {
+      setFormError("Firebase není nakonfigurován (proměnné VITE_FIREBASE_*).");
+      return;
+    }
+    setBusy(true);
+    try {
+      const auth = getFirebaseAuth();
+      const provider = new GoogleAuthProvider();
+      await signInWithPopup(auth, provider);
+      navigate("/");
+    } catch (e) {
+      setFormError(mapFirebaseAuthError(e));
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newErrors: typeof errors = {};
+    setFormError(null);
 
     if (!email) newErrors.email = "E-mail je povinný";
     if (!password) newErrors.password = "Heslo je povinné";
@@ -48,8 +73,22 @@ export function SignIn() {
       setErrors(newErrors);
       return;
     }
+    if (!isFirebaseConfigured()) {
+      setFormError("Firebase není nakonfigurován (proměnné VITE_FIREBASE_*).");
+      return;
+    }
 
-    navigate("/");
+    setErrors({});
+    setBusy(true);
+    try {
+      const auth = getFirebaseAuth();
+      await signInWithEmailAndPassword(auth, email.trim(), password);
+      navigate("/");
+    } catch (err) {
+      setFormError(mapFirebaseAuthError(err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -62,16 +101,23 @@ export function SignIn() {
       <div className="w-full max-w-sm rounded-[20px] border border-border bg-card p-5 shadow-[var(--shadow-elev-2)] sm:p-8">
         <div className="mb-6 text-center sm:mb-8">
           <h1 className="mb-2">Vítej zpátky</h1>
-          <p className="text-muted-foreground">Hned jsi uvnitř a můžeš zase něco směnit.</p>
+          <p className="text-muted-foreground">Přihlášení přes Firebase (e-mail nebo Google).</p>
         </div>
+
+        {formError && (
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {formError}
+          </div>
+        )}
 
         <div className="mb-5 space-y-4">
           <Button
             type="button"
             variant="outline"
             fullWidth
+            disabled={busy}
             className="gap-2 border border-border bg-background font-medium shadow-none hover:bg-muted"
-            onClick={handleGoogleSignIn}
+            onClick={() => void handleGoogleSignIn()}
           >
             <GoogleGIcon className="h-5 w-5 shrink-0" />
             Přihlásit se přes Google
@@ -84,7 +130,7 @@ export function SignIn() {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
           <Input
             type="email"
             label="E-mail"
@@ -97,6 +143,7 @@ export function SignIn() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             error={errors.email}
+            disabled={busy}
           />
 
           <Input
@@ -108,6 +155,7 @@ export function SignIn() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             error={errors.password}
+            disabled={busy}
           />
 
           <button
@@ -117,8 +165,8 @@ export function SignIn() {
             Zapomněli jste heslo?
           </button>
 
-          <Button type="submit" fullWidth>
-            Přihlásit se
+          <Button type="submit" fullWidth disabled={busy}>
+            {busy ? "Přihlašování…" : "Přihlásit se"}
           </Button>
         </form>
 

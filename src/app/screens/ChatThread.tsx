@@ -12,6 +12,7 @@ import {
   unhideChatFromInbox,
 } from "../lib/chatService";
 import { isFirebaseConfigured } from "../lib/firebase";
+import { sanitizeChatDisplayName } from "../lib/sanitizeDisplayText";
 
 const MOCK_MESSAGES = [
   {
@@ -133,7 +134,7 @@ export function ChatThread() {
     setChatId(raw);
     setResolving(false);
     const oName = searchParams.get("name");
-    if (oName) setOtherName(decodeURIComponent(oName));
+    if (oName) setOtherName(sanitizeChatDisplayName(decodeURIComponent(oName)));
     else setOtherName("Chat");
   }, [authLoading, routeId, user, isFirebase, navigate, searchParams]);
 

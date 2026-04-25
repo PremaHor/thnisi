@@ -10,6 +10,25 @@ service cloud.firestore {
       return isAuthed() && request.auth.uid in ids;
     }
 
+    /** Lexikograficky seřazené UID pro deterministické id 1:1 chatu. */
+    function sortedTwoUids(a, b) {
+      return a < b ? a + '_' + b : b + '_' + a;
+    }
+
+    /** Dokument /chats/{chatId} musí odpovídat účastníkům (zabraňuje nesouladu id vs. obsah). */
+    function validChatIdForParticipants(chatId, p) {
+      return p is list
+        && (
+          (p.size() == 1
+            && p[0] == request.auth.uid
+            && chatId.matches('^solo_' + request.auth.uid + '_offer_.+'))
+          || (p.size() == 2
+            && p[0] is string
+            && p[1] is string
+            && chatId == sortedTwoUids(p[0], p[1]))
+        );
+    }
+
     /** 1 = solo thread, 2 = dvou stran – žádné „přidání“ cizího UID později při update */
     function validParticipantListOnCreate() {
       let p = request.resource.data.participantIds;
@@ -40,8 +59,13 @@ service cloud.firestore {
     }
 
     match /chats/{chatId} {
+      /**
+       * Párový chat bez pozvánky stále umožňuje „vynucený“ thread (viz bezpečnostní audit).
+       * Doplňte invite flow nebo Cloud Function, pokud chcete souhlas druhé strany.
+       */
       allow read: if isInParticipants(resource.data.participantIds);
-      allow create: if validParticipantListOnCreate();
+      allow create: if validParticipantListOnCreate()
+        && validChatIdForParticipants(chatId, request.resource.data.participantIds);
       allow update: if isInParticipants(resource.data.participantIds)
         && participantListUnchanged();
       allow delete: if false;

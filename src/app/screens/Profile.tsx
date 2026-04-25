@@ -1,9 +1,11 @@
+import { signOut } from "firebase/auth";
 import { Link, useNavigate } from "react-router";
 import { Edit2, Settings, LogOut, FileText, Shield } from "lucide-react";
 import { Avatar } from "../components/Avatar";
 import { Button } from "../components/Button";
 import { CURRENT_RATER_ID, getUserRatingSummary } from "../data/ratingsStore";
 import { loadUserProfile } from "../data/userProfileStore";
+import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
 
 const MOCK_STATS = {
   completedTrades: 12,
@@ -95,10 +97,22 @@ export function Profile() {
           </Link>
 
           <button
-            onClick={() => navigate("/sign-in")}
-            className="w-full flex items-center gap-3 px-4 py-3 bg-card border border-border rounded-lg hover:bg-secondary transition-colors text-destructive min-h-[56px]"
+            type="button"
+            onClick={() => {
+              void (async () => {
+                if (isFirebaseConfigured()) {
+                  try {
+                    await signOut(getFirebaseAuth());
+                  } catch {
+                    /* ignoruj */
+                  }
+                }
+                navigate("/sign-in");
+              })();
+            }}
+            className="flex min-h-[56px] w-full items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 text-destructive transition-colors hover:bg-secondary"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="h-5 w-5" />
             <span className="flex-1 text-left">Odhlásit se</span>
           </button>
         </div>

@@ -44,7 +44,7 @@ const MOCK_CHATS = [
   },
 ];
 
-const MOCK_HIDDEN_KEY = "barter:hiddenMockChats";
+const MOCK_HIDDEN_KEY = "trhnisi:hiddenMockChats:v1";
 
 export function Chats() {
   const { user, loading, configured, error: authError } = useFirebase();

@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "firebase:login": "firebase login",
+    "firebase:use": "firebase use",
+    "firebase:deploy:backend": "firebase deploy --only firestore:rules,firestore:indexes,storage"
   },
   "dependencies": {
     "@emotion/react": "11.14.0",
@@ -68,6 +71,7 @@
   "devDependencies": {
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
+    "firebase-tools": "^14.24.0",
     "tailwindcss": "4.1.12",
     "vite": "6.3.5"
   },
