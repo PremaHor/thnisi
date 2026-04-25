@@ -10,13 +10,14 @@ import { loadLikedIds } from "../data/swipePreferencesStore";
 
 export function SavedOffers() {
   const navigate = useNavigate();
-  const { user } = useFirebaseAuth();
+  const { user, loading: authLoading } = useFirebaseAuth();
   const [likedIds, setLikedIds] = useState<string[]>([]);
   const [offers, setOffers] = useState<BarterOffer[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Načti IDs — z Firestore pokud přihlášen, jinak localStorage
+  // Počkej na dokončení auth, pak načti z Firestore nebo localStorage
   useEffect(() => {
+    if (authLoading) return;
     void (async () => {
       setLoading(true);
       let ids: string[];
@@ -35,7 +36,7 @@ export function SavedOffers() {
       setOffers(results.filter((o): o is BarterOffer => o != null && o.status !== "deleted"));
       setLoading(false);
     })();
-  }, [user?.uid]);
+  }, [authLoading, user?.uid]);
 
   const removeLike = useCallback((id: string) => {
     setLikedIds((prev) => prev.filter((x) => x !== id));
