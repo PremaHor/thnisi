@@ -298,7 +298,8 @@ service cloud.firestore {
     // ─────────────────────────────────────────────
 
     match /chats/{chatId} {
-      allow read: if isInParticipants(resource.data.participantIds);
+      // resource == null = dokument neexistuje; čtení vrátí "not found" bez úniku dat
+      allow read: if resource == null || isInParticipants(resource.data.participantIds);
 
       allow create: if validParticipantListOnCreate()
         && validChatIdForParticipants(chatId, request.resource.data.participantIds)

@@ -200,14 +200,16 @@ export async function ensureChatForTrade(uid1: string, uid2: string): Promise<st
   const sorted = [uid1, uid2].sort();
   const chatId = `${sorted[0]}_${sorted[1]}`;
   const chatRef = doc(db, "chats", chatId);
-  const existing = await getDoc(chatRef);
-  if (!existing.exists()) {
-    await setDoc(chatRef, {
+  // setDoc merge: true → vytvoří pokud neexistuje, jinak jen aktualizuje updatedAt
+  await setDoc(
+    chatRef,
+    {
       participantIds: sorted,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
-  }
+    },
+    { merge: true }
+  );
   return chatId;
 }
 
