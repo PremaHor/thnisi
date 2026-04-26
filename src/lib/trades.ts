@@ -195,14 +195,16 @@ export function subscribePendingIncomingCount(
   );
 }
 
-/** Vytvoří chat mezi dvěma uživateli (nebo vrátí existující) a vrátí chatId. */
+/** Vytvoří chat pro konkrétní nabídku mezi dvěma uživateli (nebo vrátí existující). */
 export async function ensureChatForTrade(
   uid1: string,
   uid2: string,
+  offerId: string,
   offerTitle?: string
 ): Promise<string> {
   const sorted = [uid1, uid2].sort();
-  const chatId = `${sorted[0]}_${sorted[1]}`;
+  // Každá nabídka má vlastní chat – chatId obsahuje offerId
+  const chatId = `${sorted[0]}_${sorted[1]}_${offerId}`;
   const chatRef = doc(db, "chats", chatId);
   const payload: Record<string, unknown> = {
     participantIds: sorted,
