@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   addDoc,
+  getDoc,
   setDoc,
   deleteDoc,
   onSnapshot,
@@ -35,10 +36,28 @@ export type FirestoreChat = {
   participantIds: string[];
   lastMessage: string;
   lastMessageAt: Timestamp | null;
-  /** Při jednom účastníkovi: jméno protistrany z nabídky (demo) */
   otherPartyName?: string;
   offerId?: string;
+  offerTitle?: string;
 };
+
+/** Jednorázové načtení chat dokumentu. */
+export async function getChat(chatId: string): Promise<FirestoreChat | null> {
+  if (!isFirebaseConfigured()) return null;
+  const db = getDb();
+  const snap = await getDoc(doc(db, CHATS, chatId));
+  if (!snap.exists()) return null;
+  const d = snap.data() as Record<string, unknown>;
+  return {
+    id: snap.id,
+    participantIds: Array.isArray(d.participantIds) ? (d.participantIds as string[]) : [],
+    lastMessage: String(d.lastMessage ?? ""),
+    lastMessageAt: (d.lastMessageAt as Timestamp | null) ?? null,
+    otherPartyName: d.otherPartyName as string | undefined,
+    offerId: d.offerId as string | undefined,
+    offerTitle: d.offerTitle as string | undefined,
+  };
+}
 
 /**
  * Dva Firebase UID — deterministické ID threadu.

@@ -10,6 +10,7 @@ import {
   sendTextMessage,
   ensureChatForOfferContext,
   unhideChatFromInbox,
+  getChat,
 } from "../lib/chatService";
 import { isFirebaseConfigured } from "../lib/firebase";
 import { sanitizeChatDisplayName } from "../lib/sanitizeDisplayText";
@@ -72,6 +73,14 @@ export function ChatThread() {
     if (!isFirebase || !user || !chatId) return;
     void unhideChatFromInbox(user.uid, chatId);
   }, [isFirebase, user, chatId]);
+
+  // Načti offerTitle z Firestore pokud není v URL
+  useEffect(() => {
+    if (!chatId || !isFirebase) return;
+    void getChat(chatId).then((chat) => {
+      if (chat?.offerTitle) setOfferTitle(chat.offerTitle);
+    });
+  }, [chatId, isFirebase]);
 
   // Vyřešit route (seller-X / přímé chatId)
   useEffect(() => {
