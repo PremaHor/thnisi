@@ -276,16 +276,16 @@ export function TradeRequests() {
                   {/* Přijatá žádost — tlačítka akcí */}
                   {request.status === "accepted" && (
                     <div className="flex min-w-0 flex-col gap-2">
-                      {/* Do chatu — pro oba účastníky */}
+                      {/* Do chatu — pro oba účastníky; requester vidí výraznější CTA */}
                       <Button
                         type="button"
-                        variant="outline"
+                        variant={request.type === "outgoing" ? "default" : "outline"}
                         size="sm"
                         fullWidth
                         onClick={() => void goToChat(request.ownerId, request.requesterId)}
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
-                        Otevřít chat
+                        {request.type === "outgoing" ? "Zahájit chat" : "Otevřít chat"}
                       </Button>
 
                       {/* Dokončit směnu — jen pro toho kdo žádost poslal */}

@@ -62,8 +62,26 @@ function showDeclinedNotification(offerTitle: string) {
   n.onclick = () => { window.focus(); n.close(); };
 }
 
-/** Sleduje odchozí žádosti a upozorní když se změní z pending → declined. */
-function useDeclinedRequestNotifications() {
+function showAcceptedNotification(offerTitle: string) {
+  if (typeof window === "undefined") return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  const n = new Notification("TrhniSi — žádost o směnu přijata! 🎉", {
+    body: `Tvoje žádost o nabídku „${offerTitle}" byla přijata. Otevři Žádosti a zahaj chat.`,
+    icon: "/app-icon-192.png",
+    badge: "/app-icon-192.png",
+    tag: "trade-accepted",
+    renotify: true,
+  });
+  n.onclick = () => {
+    window.focus();
+    window.location.href = "/trades";
+    n.close();
+  };
+}
+
+/** Sleduje odchozí žádosti a upozorní při pending → declined nebo pending → accepted. */
+function useOutgoingRequestNotifications() {
   const { user } = useFirebaseAuth();
   // Mapa requestId → předchozí status; null = ještě jsme neviděli první snapshot
   const prevStatuses = useRef<Map<string, TradeRequestStatus> | null>(null);
@@ -80,6 +98,9 @@ function useDeclinedRequestNotifications() {
         const prev = prevStatuses.current!.get(r.id);
         if (prev === "pending" && r.status === "declined") {
           showDeclinedNotification(r.offerTitle);
+        }
+        if (prev === "pending" && r.status === "accepted") {
+          showAcceptedNotification(r.offerTitle);
         }
         prevStatuses.current!.set(r.id, r.status);
       });
@@ -117,7 +138,7 @@ function usePendingTradeCount(): number {
 export function RootLayout() {
   const location = useLocation();
   const pendingTrades = usePendingTradeCount();
-  useDeclinedRequestNotifications();
+  useOutgoingRequestNotifications();
 
   const navItems = [
     { path: "/", icon: Home, label: "Objevuj" },
