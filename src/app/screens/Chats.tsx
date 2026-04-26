@@ -121,9 +121,13 @@ export function Chats() {
       .filter((c) => !hiddenChatIds.has(c.id))
       .map((c) => {
         const t = c.lastMessageAt?.toDate();
+        const name = titleForList(c, user.uid);
+        let href = `/chat/${encodeURIComponent(c.id)}?name=${encodeURIComponent(name)}`;
+        if (c.offerTitle) href += `&title=${encodeURIComponent(c.offerTitle)}`;
         return {
-          href: `/chat/${encodeURIComponent(c.id)}?name=${encodeURIComponent(titleForList(c, user.uid))}` as const,
-          name: titleForList(c, user.uid),
+          href: href as string,
+          name,
+          offerTitle: c.offerTitle || "",
           last: c.lastMessage || "—",
           time: t
             ? formatDistanceToNow(t, { addSuffix: true, locale: cs })
@@ -240,7 +244,7 @@ export function Chats() {
                 </button>
               </div>
             ))
-          : isFb && !loading
+            : isFb && !loading
             ? rows.map((r) => (
                 <div
                   key={r.key}
@@ -258,6 +262,11 @@ export function Chats() {
                           {r.time}
                         </span>
                       </div>
+                      {r.offerTitle && (
+                        <p className="line-clamp-1 text-xs font-medium text-primary mb-0.5">
+                          {r.offerTitle}
+                        </p>
+                      )}
                       <p className="line-clamp-1 text-sm text-muted-foreground">{r.last}</p>
                     </div>
                   </Link>

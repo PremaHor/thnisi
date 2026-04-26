@@ -145,6 +145,7 @@ export function subscribeChats(
           lastMessageAt: Timestamp | null;
           otherPartyName?: string;
           offerId?: string;
+          offerTitle?: string;
         };
         return {
           id: d.id,
@@ -153,6 +154,7 @@ export function subscribeChats(
           lastMessageAt: x.lastMessageAt ?? null,
           otherPartyName: x.otherPartyName,
           offerId: x.offerId,
+          offerTitle: x.offerTitle,
         };
       });
       onUpdate(list);
