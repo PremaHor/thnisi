@@ -149,16 +149,25 @@ service cloud.firestore {
         ]);
 
       allow update: if isOwner(userId)
+        // Neměnná pole
         && request.resource.data.uid == resource.data.uid
-        && request.resource.data.createdAt == resource.data.createdAt
-        && request.resource.data.completedTrades == resource.data.completedTrades
-        && request.resource.data.ratingAvg == resource.data.ratingAvg
-        && request.resource.data.ratingCount == resource.data.ratingCount
-        && validUserFields(request.resource.data)
-        && request.resource.data.keys().hasOnly([
-          'uid', 'email', 'name', 'bio', 'location', 'avatarUrl',
-          'completedTrades', 'ratingAvg', 'ratingCount', 'createdAt', 'updatedAt'
-        ]);
+        && (
+          !resource.data.keys().hasAny(['createdAt'])
+          || request.resource.data.createdAt == resource.data.createdAt
+        )
+        // Statistiky nesmí uživatel měnit sám
+        && (
+          !resource.data.keys().hasAny(['completedTrades'])
+          || request.resource.data.completedTrades == resource.data.completedTrades
+        )
+        && (
+          !resource.data.keys().hasAny(['ratingAvg'])
+          || request.resource.data.ratingAvg == resource.data.ratingAvg
+        )
+        && (
+          !resource.data.keys().hasAny(['ratingCount'])
+          || request.resource.data.ratingCount == resource.data.ratingCount
+        );
 
       allow delete: if false;
 
