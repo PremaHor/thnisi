@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, Link } from "react-router";
 import { Home, Plus, MessageCircle, ShoppingBag, User } from "lucide-react";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
-import { subscribePendingIncomingCount } from "../../lib/trades";
+import { subscribePendingIncomingCount, subscribeOutgoingRequests, type TradeRequestStatus } from "../../lib/trades";
 
 function isNavActive(path: string, pathname: string): boolean {
   if (path === "/") {
@@ -45,10 +45,47 @@ function showTradeNotification(count: number) {
     tag: "trade-request",
     renotify: true,
   });
-  n.onclick = () => {
-    window.focus();
-    n.close();
-  };
+  n.onclick = () => { window.focus(); n.close(); };
+}
+
+function showDeclinedNotification(offerTitle: string) {
+  if (typeof window === "undefined") return;
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+  const n = new Notification("TrhniSi — žádost o směnu odmítnuta", {
+    body: `Tvoje žádost o nabídku „${offerTitle}" byla odmítnuta.`,
+    icon: "/app-icon-192.png",
+    badge: "/app-icon-192.png",
+    tag: "trade-declined",
+    renotify: true,
+  });
+  n.onclick = () => { window.focus(); n.close(); };
+}
+
+/** Sleduje odchozí žádosti a upozorní když se změní z pending → declined. */
+function useDeclinedRequestNotifications() {
+  const { user } = useFirebaseAuth();
+  // Mapa requestId → předchozí status; null = ještě jsme neviděli první snapshot
+  const prevStatuses = useRef<Map<string, TradeRequestStatus> | null>(null);
+
+  useEffect(() => {
+    if (!user?.uid) { prevStatuses.current = null; return; }
+    const unsub = subscribeOutgoingRequests(user.uid, (requests) => {
+      if (prevStatuses.current === null) {
+        // První snapshot — pouze inicializujeme mapu, nenotifikujeme
+        prevStatuses.current = new Map(requests.map((r) => [r.id, r.status]));
+        return;
+      }
+      requests.forEach((r) => {
+        const prev = prevStatuses.current!.get(r.id);
+        if (prev === "pending" && r.status === "declined") {
+          showDeclinedNotification(r.offerTitle);
+        }
+        prevStatuses.current!.set(r.id, r.status);
+      });
+    });
+    return () => { unsub(); prevStatuses.current = null; };
+  }, [user?.uid]);
 }
 
 function usePendingTradeCount(): number {
@@ -80,6 +117,7 @@ function usePendingTradeCount(): number {
 export function RootLayout() {
   const location = useLocation();
   const pendingTrades = usePendingTradeCount();
+  useDeclinedRequestNotifications();
 
   const navItems = [
     { path: "/", icon: Home, label: "Objevuj" },

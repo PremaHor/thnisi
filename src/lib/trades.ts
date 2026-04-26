@@ -137,6 +137,25 @@ export function subscribeTradeRequestsForUser(
   };
 }
 
+/** Real-time subscription na odchozí žádosti (kde jsem já requester). */
+export function subscribeOutgoingRequests(
+  userId: string,
+  onData: (requests: TradeRequest[]) => void,
+  onError?: (e: Error) => void
+): () => void {
+  return onSnapshot(
+    query(
+      collection(db, COLLECTION),
+      where("requesterId", "==", userId),
+      orderBy("createdAt", "desc")
+    ),
+    (snap) => {
+      onData(snap.docs.map((d) => normalize(d.id, d.data() as Record<string, unknown>)));
+    },
+    onError
+  );
+}
+
 /**
  * Živý počet žádostí (všech stavů) per offerId pro daného vlastníka.
  * Vrací mapu offerId → počet pending žádostí.
