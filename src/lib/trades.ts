@@ -208,6 +208,8 @@ export async function ensureChatForTrade(
   const chatRef = doc(db, "chats", chatId);
   const payload: Record<string, unknown> = {
     participantIds: sorted,
+    lastMessage: "",
+    lastMessageAt: serverTimestamp(),
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
