@@ -196,20 +196,21 @@ export function subscribePendingIncomingCount(
 }
 
 /** Vytvoří chat mezi dvěma uživateli (nebo vrátí existující) a vrátí chatId. */
-export async function ensureChatForTrade(uid1: string, uid2: string): Promise<string> {
+export async function ensureChatForTrade(
+  uid1: string,
+  uid2: string,
+  offerTitle?: string
+): Promise<string> {
   const sorted = [uid1, uid2].sort();
   const chatId = `${sorted[0]}_${sorted[1]}`;
   const chatRef = doc(db, "chats", chatId);
-  // setDoc merge: true → vytvoří pokud neexistuje, jinak jen aktualizuje updatedAt
-  await setDoc(
-    chatRef,
-    {
-      participantIds: sorted,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const payload: Record<string, unknown> = {
+    participantIds: sorted,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  if (offerTitle) payload.offerTitle = offerTitle;
+  await setDoc(chatRef, payload, { merge: true });
   return chatId;
 }
 

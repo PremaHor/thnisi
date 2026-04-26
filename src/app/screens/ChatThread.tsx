@@ -33,6 +33,7 @@ export function ChatThread() {
   const [chatId, setChatId] = useState<string | null>(null);
   const [otherName, setOtherName] = useState("Načítám…");
   const [otherAvatar, setOtherAvatar] = useState("");
+  const [offerTitle, setOfferTitle] = useState("");
   const [msgError, setMsgError] = useState<Error | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const stickToBottomRef = useRef(true);
@@ -109,6 +110,8 @@ export function ChatThread() {
     const oName = searchParams.get("name");
     if (oName) setOtherName(sanitizeChatDisplayName(decodeURIComponent(oName)));
     else setOtherName("Chat");
+    const oTitle = searchParams.get("title");
+    if (oTitle) setOfferTitle(decodeURIComponent(oTitle));
   }, [authLoading, routeId, user, isFirebase, navigate, searchParams]);
 
   // Realtime zprávy
@@ -202,7 +205,11 @@ export function ChatThread() {
           <Avatar src={otherAvatar} size="md" className="shrink-0" />
           <div className="min-w-0 flex-1">
             <h4 className="line-clamp-1">{otherName}</h4>
-            <p className="text-xs text-muted-foreground">Realtime chat</p>
+            {offerTitle ? (
+              <p className="line-clamp-1 text-xs text-muted-foreground">{offerTitle}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Chat</p>
+            )}
           </div>
         </div>
       </div>

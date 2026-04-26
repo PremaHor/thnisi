@@ -306,7 +306,7 @@ service cloud.firestore {
         && validLastMessage(request.resource.data)
         && request.resource.data.keys().hasOnly([
           'participantIds', 'lastMessage', 'lastMessageAt',
-          'otherPartyName', 'offerId', 'createdAt', 'updatedAt'
+          'otherPartyName', 'offerId', 'offerTitle', 'createdAt', 'updatedAt'
         ]);
 
       allow update: if isInParticipants(resource.data.participantIds)
@@ -316,7 +316,7 @@ service cloud.firestore {
           || request.resource.data.offerId == resource.data.offerId)
         && request.resource.data.keys().hasOnly([
           'participantIds', 'lastMessage', 'lastMessageAt',
-          'otherPartyName', 'offerId', 'createdAt', 'updatedAt'
+          'otherPartyName', 'offerId', 'offerTitle', 'createdAt', 'updatedAt'
         ]);
 
       allow delete: if false;

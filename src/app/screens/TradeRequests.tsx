@@ -133,8 +133,8 @@ export function TradeRequests() {
     setAcceptBusy(request.id);
     try {
       await updateTradeRequestStatus(request.id, "accepted");
-      const chatId = await ensureChatForTrade(request.ownerId, request.requesterId);
-      navigate(`/chat/${chatId}`);
+      const chatId = await ensureChatForTrade(request.ownerId, request.requesterId, request.offer);
+      navigate(`/chat/${chatId}?title=${encodeURIComponent(request.offer)}`);
     } catch (e) {
       console.error("Accept error:", e);
     } finally {
@@ -169,9 +169,9 @@ export function TradeRequests() {
     setPicked(null);
   };
 
-  const goToChat = async (ownerId: string, requesterId: string) => {
-    const chatId = await ensureChatForTrade(ownerId, requesterId);
-    navigate(`/chat/${chatId}`);
+  const goToChat = async (ownerId: string, requesterId: string, offerTitle: string) => {
+    const chatId = await ensureChatForTrade(ownerId, requesterId, offerTitle);
+    navigate(`/chat/${chatId}?title=${encodeURIComponent(offerTitle)}`);
   };
 
   return (
@@ -282,7 +282,7 @@ export function TradeRequests() {
                         variant={request.type === "outgoing" ? "default" : "outline"}
                         size="sm"
                         fullWidth
-                        onClick={() => void goToChat(request.ownerId, request.requesterId)}
+                        onClick={() => void goToChat(request.ownerId, request.requesterId, request.offer)}
                       >
                         <MessageCircle className="mr-2 h-4 w-4" />
                         {request.type === "outgoing" ? "Zahájit chat" : "Otevřít chat"}
