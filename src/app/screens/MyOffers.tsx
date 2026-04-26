@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from "react";
 import { Link } from "react-router";
-import { Plus, Edit2, Trash2, Eye, EyeOff } from "lucide-react";
+import { Plus, Edit2, Trash2, Eye, EyeOff, ArrowLeftRight } from "lucide-react";
 import { Badge } from "../components/Badge";
 import { Button } from "../components/Button";
 import { ImageWithFallback } from "../components/ImageWithFallback";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { getOffersBySellerId, softDeleteOffer, updateOffer, type OfferStatus } from "../../lib/offers";
+import { subscribePendingTradeCountsByOffer } from "../../lib/trades";
 
 interface MyOfferRow {
   id: string;
@@ -29,6 +30,7 @@ export function MyOffers() {
   const [offers, setOffers] = useState<MyOfferRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [tradeCounts, setTradeCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!user?.uid) {
@@ -62,6 +64,13 @@ export function MyOffers() {
       }
     })();
   }, [user]);
+
+  // Živý počet pending žádostí per nabídka
+  useEffect(() => {
+    if (!user?.uid) { setTradeCounts({}); return; }
+    const unsub = subscribePendingTradeCountsByOffer(user.uid, setTradeCounts);
+    return unsub;
+  }, [user?.uid]);
 
   const toggleStatus = useCallback((id: string) => {
     setOffers((prev) => {
@@ -119,10 +128,13 @@ export function MyOffers() {
           <div className="space-y-4">
             {offers.map((offer) => {
               const active = offer.status === "active";
+              const pendingCount = tradeCounts[offer.id] ?? 0;
               return (
                 <div
                   key={offer.id}
-                  className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+                  className={`overflow-hidden rounded-lg border bg-card shadow-sm transition-colors ${
+                    pendingCount > 0 ? "border-primary/60 shadow-primary/10" : "border-border"
+                  }`}
                 >
                   <div className="flex gap-3 p-3">
                     <Link
@@ -141,9 +153,20 @@ export function MyOffers() {
                         <Badge variant="primary" className="mb-2">
                           {offer.category}
                         </Badge>
-                        <div className="flex gap-4 text-sm text-muted-foreground">
-                          <span>{offer.views} zobrazení</span>
-                          <span>{offer.requests} žádostí</span>
+                        <div className="flex flex-wrap gap-3 text-sm">
+                          <span className="text-muted-foreground">{offer.views} zobrazení</span>
+                          {pendingCount > 0 ? (
+                            <Link
+                              to="/trades"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-1 font-semibold text-primary"
+                            >
+                              <ArrowLeftRight className="h-3.5 w-3.5" />
+                              {pendingCount} {pendingCount === 1 ? "žádost" : pendingCount < 5 ? "žádosti" : "žádostí"}
+                            </Link>
+                          ) : (
+                            <span className="text-muted-foreground">0 žádostí</span>
+                          )}
                         </div>
                       </div>
                     </Link>

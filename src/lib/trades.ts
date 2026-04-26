@@ -137,6 +137,32 @@ export function subscribeTradeRequestsForUser(
   };
 }
 
+/**
+ * Živý počet žádostí (všech stavů) per offerId pro daného vlastníka.
+ * Vrací mapu offerId → počet pending žádostí.
+ */
+export function subscribePendingTradeCountsByOffer(
+  ownerId: string,
+  onChange: (counts: Record<string, number>) => void
+): () => void {
+  return onSnapshot(
+    query(collection(db, COLLECTION), where("ownerId", "==", ownerId)),
+    (snap) => {
+      const counts: Record<string, number> = {};
+      snap.docs.forEach((d) => {
+        const data = d.data() as Record<string, unknown>;
+        const offerId = String(data.offerId ?? "");
+        const status = String(data.status ?? "");
+        if (offerId && status === "pending") {
+          counts[offerId] = (counts[offerId] ?? 0) + 1;
+        }
+      });
+      onChange(counts);
+    },
+    () => onChange({})
+  );
+}
+
 /** Počet nevyřízených příchozích žádostí (pro badge v navigaci). */
 export function subscribePendingIncomingCount(
   userId: string,
