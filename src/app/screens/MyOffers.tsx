@@ -52,7 +52,7 @@ export function MyOffers() {
               category: offer.category,
               status: offer.status,
               image: offer.image || offer.images[0] || "",
-              views: 0,
+              views: offer.viewCount,
               requests: 0,
             }))
         );

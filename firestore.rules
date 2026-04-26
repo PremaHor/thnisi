@@ -209,9 +209,10 @@ service cloud.firestore {
           'title', 'description', 'wantsInReturn', 'category',
           'location', 'lat', 'lng', 'isRemote', 'image', 'images',
           'attachments', 'tags', 'sellerId', 'sellerName', 'sellerAvatar',
-          'status', 'createdAt', 'updatedAt'
+          'status', 'viewCount', 'createdAt', 'updatedAt'
         ]);
 
+      // Vlastník může měnit libovolná povolená pole
       allow update: if isAuthed()
         && resource.data.sellerId == request.auth.uid
         && request.resource.data.sellerId == resource.data.sellerId
@@ -222,8 +223,14 @@ service cloud.firestore {
           'title', 'description', 'wantsInReturn', 'category',
           'location', 'lat', 'lng', 'isRemote', 'image', 'images',
           'attachments', 'tags', 'sellerId', 'sellerName', 'sellerAvatar',
-          'status', 'createdAt', 'updatedAt'
+          'status', 'viewCount', 'createdAt', 'updatedAt'
         ]);
+
+      // Přihlášený cizí uživatel může inkrementovat pouze viewCount
+      allow update: if isAuthed()
+        && resource.data.sellerId != request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['viewCount'])
+        && request.resource.data.viewCount is number;
 
       allow delete: if false;
     }

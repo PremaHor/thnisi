@@ -11,7 +11,7 @@ import { loadUserOfferForm, mergeFormIntoPublicOffer } from "../data/userOfferFo
 import { isOfferLiked, toggleLikedOfferId } from "../data/swipePreferencesStore";
 import { SellerRatingDisplay } from "../components/SellerRatingDisplay";
 import { cn } from "../components/ui/utils";
-import { getOfferById } from "../../lib/offers";
+import { getOfferById, incrementOfferViewCount } from "../../lib/offers";
 import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 import { createTradeRequest } from "../../lib/trades";
 import { getUserProfile } from "../../lib/profile";
@@ -42,6 +42,10 @@ export function OfferDetail() {
       try {
         const remote = await getOfferById(id);
         if (!remote) return;
+        // Počítej zobrazení pouze od cizích přihlášených uživatelů
+        if (authUser?.uid && authUser.uid !== remote.sellerId) {
+          void incrementOfferViewCount(id);
+        }
         const sellerProfile = await getUserProfile(remote.sellerId);
         setOffer({
           id: remote.id,

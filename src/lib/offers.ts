@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  increment,
   orderBy,
   query,
   serverTimestamp,
@@ -41,6 +42,7 @@ export interface BarterOfferCreateInput {
 export interface BarterOffer extends BarterOfferCreateInput {
   id: string;
   status: OfferStatus;
+  viewCount: number;
   createdAt: Timestamp | null;
   updatedAt: Timestamp | null;
 }
@@ -74,6 +76,7 @@ function toOffer(id: string, data: Record<string, unknown>): BarterOffer {
     tags: Array.isArray(data.tags) ? data.tags.map((x) => String(x)) : [],
     sellerId: String(data.sellerId ?? ""),
     status: (data.status as OfferStatus) ?? "active",
+    viewCount: typeof data.viewCount === "number" ? data.viewCount : 0,
     createdAt: (data.createdAt as Timestamp | null) ?? null,
     updatedAt: (data.updatedAt as Timestamp | null) ?? null,
   };
@@ -128,6 +131,12 @@ export async function updateOffer(
   if (typeof lat === "number") payload.lat = lat;
   if (typeof lng === "number") payload.lng = lng;
   await updateDoc(ref, payload);
+}
+
+/** Atomicky zvýší počet zobrazení nabídky o 1. Volat pouze pokud viewer != seller. */
+export async function incrementOfferViewCount(id: string): Promise<void> {
+  const ref = doc(db, OFFERS_COLLECTION, id);
+  await updateDoc(ref, { viewCount: increment(1) });
 }
 
 export async function softDeleteOffer(id: string): Promise<void> {
