@@ -65,17 +65,16 @@ export function SignIn() {
     setFormError(null);
     setBusy(true);
     try {
-      const user = await signInWithGoogle();
-      if (user) {
-        // Popup flow completed synchronously — navigate now.
-        navigate(redirectTarget, { replace: true });
-      }
-      // If user === null: redirect flow started; browser is navigating away.
-      // Do NOT setBusy(false) — keeps spinner while the browser redirects,
-      // which prevents the user from double-clicking.
+      await signInWithGoogle();
+      navigate(redirectTarget, { replace: true });
     } catch (e) {
       console.error("Google sign-in error:", e);
+      // #region agent log
+      const errCode = (e as { code?: string })?.code ?? "unknown";
+      fetch('http://127.0.0.1:7942/ingest/25be6b19-1e16-4c08-b1ae-27fa0e446bf5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e70cc9'},body:JSON.stringify({sessionId:'e70cc9',location:'SignIn.tsx:handleGoogleSignIn',message:'Google sign-in error',data:{errorCode:errCode,errorMsg:String(e)},timestamp:Date.now(),hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       setFormError(mapFirebaseAuthError(e));
+    } finally {
       setBusy(false);
     }
   };

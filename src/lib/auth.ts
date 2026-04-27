@@ -3,7 +3,6 @@ import {
   GoogleAuthProvider,
   linkWithCredential,
   signInWithPopup,
-  signInWithRedirect,
   getRedirectResult,
   signOut,
   createUserWithEmailAndPassword,
@@ -16,27 +15,13 @@ import { auth } from "../firebase";
 import { db } from "../firebase";
 
 const provider = new GoogleAuthProvider();
-// Request basic profile scopes
 provider.addScope("profile");
 provider.addScope("email");
 
 /**
- * Returns true when running as an installed PWA (iOS/Android home screen app).
- * Popups are blocked on iOS Safari PWA standalone mode — redirect must be used.
- */
-function isInstalledPWA(): boolean {
-  if (typeof window === "undefined") return false;
-  return (
-    window.matchMedia("(display-mode: standalone)").matches ||
-    // iOS-specific check
-    (window.navigator as { standalone?: boolean }).standalone === true
-  );
-}
-
-/**
- * Consumes a pending Google redirect result after the app restarts from
- * signInWithRedirect. Call once on app startup (in useFirebaseAuth).
- * Returns the user if a redirect just completed, or null otherwise.
+ * Consumes a pending Google redirect result on app startup.
+ * This is a safety-net for any stale redirect state left in storage
+ * (e.g. from a previous redirect attempt). Returns user or null.
  */
 export async function consumeGoogleRedirectResult(): Promise<User | null> {
   try {
@@ -88,21 +73,30 @@ export async function ensureUserDocument(user: User) {
 }
 
 /**
- * Google sign-in with automatic strategy selection:
- * – Installed PWA (iOS/Android standalone): signInWithRedirect
- *   because iOS Safari blocks window.open() in PWA standalone mode.
- * – Desktop / mobile browser tab: signInWithPopup (better UX).
+ * Google sign-in using popup in all environments.
  *
- * In the redirect case this function returns null; the actual user object
- * is delivered via onAuthStateChanged after the app restarts and
- * consumeGoogleRedirectResult() is called.
+ * iOS < 16.4 in PWA standalone blocks window.open() → auth/popup-blocked.
+ * iOS ≥ 16.4 in PWA standalone supports window.open() → popup works.
+ *
+ * signInWithRedirect is intentionally NOT used for PWA because it navigates
+ * the entire page away from the PWA context; iOS then opens the return URL
+ * in Safari instead of returning to the PWA, breaking the auth flow entirely.
+ *
+ * If popup is blocked the caller receives the auth/popup-blocked error which
+ * maps to a user-friendly message in firebaseAuthErrors.ts.
  */
 export const signInWithGoogle = async (): Promise<User | null> => {
-  if (isInstalledPWA()) {
-    await signInWithRedirect(auth, provider);
-    return null; // browser navigates away; result handled on return
-  }
+  // #region agent log
+  const isPWA = typeof window !== "undefined" && (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (window.navigator as { standalone?: boolean }).standalone === true
+  );
+  fetch('http://127.0.0.1:7942/ingest/25be6b19-1e16-4c08-b1ae-27fa0e446bf5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e70cc9'},body:JSON.stringify({sessionId:'e70cc9',location:'auth.ts:signInWithGoogle',message:'starting popup sign-in',data:{isPWA,userAgent:navigator.userAgent.substring(0,120)},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   const result = await signInWithPopup(auth, provider);
+  // #region agent log
+  fetch('http://127.0.0.1:7942/ingest/25be6b19-1e16-4c08-b1ae-27fa0e446bf5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e70cc9'},body:JSON.stringify({sessionId:'e70cc9',location:'auth.ts:signInWithGoogle',message:'popup success',data:{uid:result.user.uid,email:result.user.email},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
+  // #endregion
   try { await ensureUserDocument(result.user); } catch { /* non-fatal */ }
   return result.user;
 };
