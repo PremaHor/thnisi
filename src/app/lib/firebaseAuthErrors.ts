@@ -30,7 +30,7 @@ export function mapFirebaseAuthError(err: unknown): string {
       case "auth/popup-closed-by-user":
         return "Okno přihlášení bylo zavřeno. Zkuste to znovu.";
       case "auth/popup-blocked":
-        return "Prohlížeč zablokoval přihlašovací okno. Zkuste znovu nebo povolte vyskakovací okna.";
+        return "Přihlašovací okno bylo zablokováno. Zkuste znovu, nebo se přihlaste e-mailem. (iPhone: vyžaduje iOS 16.4+)";
       case "auth/cancelled-popup-request":
         return "Přihlášení bylo zrušeno. Zkuste to znovu.";
       case "auth/operation-not-supported-in-this-environment":
