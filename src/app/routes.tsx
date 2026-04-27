@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, useRouteError, isRouteErrorResponse } from "react-router";
 import { RootLayout } from "./layouts/RootLayout";
 import { SignIn } from "./screens/SignIn";
 import { SignUp } from "./screens/SignUp";
@@ -19,10 +19,33 @@ import { SellerProfile } from "./screens/SellerProfile";
 import { NotFound } from "./screens/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
+function RouteErrorElement() {
+  const error = useRouteError();
+  const message = isRouteErrorResponse(error)
+    ? `${error.status} ${error.statusText}`
+    : error instanceof Error
+      ? error.message
+      : "Neznámá chyba";
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 p-8 text-center">
+      <p className="text-lg font-semibold">Něco se pokazilo</p>
+      <p className="text-sm text-muted-foreground max-w-xs">{message}</p>
+      <button
+        type="button"
+        onClick={() => { window.location.href = "/"; }}
+        className="rounded-lg bg-primary px-6 py-2.5 text-sm font-medium text-primary-foreground"
+      >
+        Zpět na hlavní stránku
+      </button>
+    </div>
+  );
+}
+
 export const router = createBrowserRouter([
   {
     path: "/",
     Component: RootLayout,
+    errorElement: <RouteErrorElement />,
     children: [
       { index: true, Component: Browse },
       { path: "saved", Component: SavedOffers },

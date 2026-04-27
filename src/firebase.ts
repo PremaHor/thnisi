@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import { getAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -37,3 +37,12 @@ export const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
+
+// Explicitly use localStorage for auth persistence.
+// On iOS PWA standalone mode, Firebase defaults to IndexedDB which can be
+// cleared by iOS between sessions. localStorage is more reliable on iOS.
+if (isFirebaseConfigured()) {
+  void setPersistence(auth, browserLocalPersistence).catch(() => {
+    // Ignore errors — persistence will fall back to the default
+  });
+}

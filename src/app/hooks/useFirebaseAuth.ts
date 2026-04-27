@@ -24,45 +24,59 @@ export function useFirebaseAuth(): AuthState {
     }
 
     const auth = getFirebaseAuth();
-    let unsubscribe: (() => void) | undefined;
     let cancelled = false;
+    // Debounce timer: when onAuthStateChanged fires with null, we wait briefly
+    // before accepting it as the final state. On iOS PWA, Firebase can fire null
+    // before it has fully restored the session from IndexedDB, which would
+    // incorrectly redirect authenticated users to the sign-in page.
+    let nullDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-    void (async () => {
-      // authStateReady() resolves once Firebase has read the persisted session
-      // from storage (IndexedDB/localStorage). Without this, onAuthStateChanged
-      // may fire with null first on iOS PWA before the real user is restored,
-      // causing ProtectedRoute to incorrectly redirect to sign-in.
-      try {
-        await auth.authStateReady();
-      } catch {
-        // Proceed even if authStateReady fails (older SDK fallback)
-      }
-
+    const commitNull = () => {
       if (cancelled) return;
+      nullDebounceTimer = null;
+      setUser(null);
+      setError(null);
+      setLoading(false);
+    };
 
-      unsubscribe = onAuthStateChanged(
-        auth,
-        async (u) => {
-          if (cancelled) return;
-          if (u) {
-            try { await ensureUserDocument(u); } catch { /* ignore */ }
-          }
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (u) => {
+        if (cancelled) return;
+
+        // Cancel any pending "commit null" debounce
+        if (nullDebounceTimer !== null) {
+          clearTimeout(nullDebounceTimer);
+          nullDebounceTimer = null;
+        }
+
+        if (u) {
+          try { await ensureUserDocument(u); } catch { /* ignore */ }
           if (cancelled) return;
           setUser(u);
           setError(null);
           setLoading(false);
-        },
-        (e) => {
-          if (cancelled) return;
-          setError(e);
-          setLoading(false);
+        } else {
+          // Delay setting null by 600 ms — if the real user fires within this
+          // window (iOS session restoration), the timer is cancelled above.
+          nullDebounceTimer = setTimeout(commitNull, 600);
         }
-      );
-    })();
+      },
+      (e) => {
+        if (cancelled) return;
+        if (nullDebounceTimer !== null) {
+          clearTimeout(nullDebounceTimer);
+          nullDebounceTimer = null;
+        }
+        setError(e);
+        setLoading(false);
+      }
+    );
 
     return () => {
       cancelled = true;
-      unsubscribe?.();
+      if (nullDebounceTimer !== null) clearTimeout(nullDebounceTimer);
+      unsubscribe();
     };
   }, []);
 
