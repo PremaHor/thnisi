@@ -65,12 +65,17 @@ export function SignIn() {
     setFormError(null);
     setBusy(true);
     try {
-      await signInWithGoogle();
-      navigate(redirectTarget, { replace: true });
+      const user = await signInWithGoogle();
+      if (user) {
+        // Popup flow completed synchronously — navigate now.
+        navigate(redirectTarget, { replace: true });
+      }
+      // If user === null: redirect flow started; browser is navigating away.
+      // Do NOT setBusy(false) — keeps spinner while the browser redirects,
+      // which prevents the user from double-clicking.
     } catch (e) {
       console.error("Google sign-in error:", e);
       setFormError(mapFirebaseAuthError(e));
-    } finally {
       setBusy(false);
     }
   };

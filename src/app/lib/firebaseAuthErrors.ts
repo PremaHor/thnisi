@@ -29,8 +29,18 @@ export function mapFirebaseAuthError(err: unknown): string {
         return "Tento způsob přihlášení není povolený. Zkontrolujte Firebase Authentication → Sign-in method.";
       case "auth/popup-closed-by-user":
         return "Okno přihlášení bylo zavřeno. Zkuste to znovu.";
+      case "auth/popup-blocked":
+        return "Prohlížeč zablokoval přihlašovací okno. Zkuste znovu nebo povolte vyskakovací okna.";
+      case "auth/cancelled-popup-request":
+        return "Přihlášení bylo zrušeno. Zkuste to znovu.";
+      case "auth/operation-not-supported-in-this-environment":
+        return "Přihlášení přes Google není v tomto prostředí podporováno.";
+      case "auth/unauthorized-domain":
+        return "Tato doména není povolena pro přihlášení. Zkontrolujte Firebase → Authentication → Authorized domains.";
       case "auth/network-request-failed":
         return "Chyba sítě. Zkontrolujte připojení.";
+      case "auth/too-many-requests":
+        return "Příliš mnoho pokusů. Zkuste to za chvíli.";
       case "auth/configuration-not-found":
       case "auth/invalid-api-key":
         return "Chybná konfigurace Firebase (API klíč nebo projekt).";

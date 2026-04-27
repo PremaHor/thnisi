@@ -1,5 +1,10 @@
 import { initializeApp } from "firebase/app";
-import { initializeAuth, indexedDBLocalPersistence, browserLocalPersistence } from "firebase/auth";
+import {
+  initializeAuth,
+  indexedDBLocalPersistence,
+  browserLocalPersistence,
+  browserPopupRedirectResolver,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -35,13 +40,14 @@ export function isFirebaseConfigured(): boolean {
 
 export const app = initializeApp(firebaseConfig);
 
-// Use initializeAuth with the same persistence chain as getAuth() default:
-// IndexedDB first (preferred, same as the old getAuth default),
-// localStorage as fallback. This ensures old sessions stored in IndexedDB
-// are still found after upgrading from getAuth to initializeAuth.
-// Persistence is set synchronously at creation time — no race condition.
+// Matches getAuth() defaults exactly:
+//   – persistence: IndexedDB → localStorage fallback (same as getAuth)
+//   – popupRedirectResolver: required for signInWithPopup AND signInWithRedirect
+// Using initializeAuth (not getAuth) sets persistence synchronously at
+// creation time, removing the race condition with getAuth+setPersistence.
 export const auth = initializeAuth(app, {
   persistence: [indexedDBLocalPersistence, browserLocalPersistence],
+  popupRedirectResolver: browserPopupRedirectResolver,
 });
 
 export const db = getFirestore(app);
