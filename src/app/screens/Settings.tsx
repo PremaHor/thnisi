@@ -19,17 +19,23 @@ import {
   Shield,
   Info,
   Check,
+  KeyRound,
+  CheckCircle,
 } from "lucide-react";
 import { useAppSettings } from "../contexts/ThemeContext";
 import { Switch } from "../components/ui/switch";
 import { Modal } from "../components/Modal";
 import { Button } from "../components/Button";
+import { Input } from "../components/Input";
 import {
   ThemePreference,
   LanguagePreference,
   clearAllLocalData,
 } from "../data/settingsStore";
 import { clearPassedIds, saveLikedIds } from "../data/swipePreferencesStore";
+import { getUserProviders, linkPasswordToCurrentUser } from "../../lib/auth";
+import { mapFirebaseAuthError, MIN_PASSWORD_LENGTH } from "../lib/firebaseAuthErrors";
+import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
 
 const APP_VERSION = "1.0.0";
 
@@ -51,10 +57,45 @@ const LANGUAGE_OPTIONS: { value: LanguagePreference; label: string; flag: string
 export function Settings() {
   const navigate = useNavigate();
   const { settings, setTheme, updateSettings } = useAppSettings();
+  const { user } = useFirebaseAuth();
 
   const [languageOpen, setLanguageOpen] = useState(false);
   const [confirmClearSwipes, setConfirmClearSwipes] = useState(false);
   const [confirmClearAll, setConfirmClearAll] = useState(false);
+
+  // Přidání hesla ke Google účtu
+  const [addPasswordOpen, setAddPasswordOpen] = useState(false);
+  const [addPwPassword, setAddPwPassword] = useState("");
+  const [addPwConfirm, setAddPwConfirm] = useState("");
+  const [addPwError, setAddPwError] = useState<string | null>(null);
+  const [addPwErrors, setAddPwErrors] = useState<{ password?: string; confirm?: string }>({});
+  const [addPwBusy, setAddPwBusy] = useState(false);
+  const [addPwDone, setAddPwDone] = useState(false);
+
+  const providers = getUserProviders();
+  const isGoogleOnly = !!user && providers.includes("google.com") && !providers.includes("password");
+  const hasPassword = providers.includes("password");
+
+  const handleAddPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const errs: typeof addPwErrors = {};
+    setAddPwError(null);
+    if (!addPwPassword) errs.password = "Heslo je povinné";
+    else if (addPwPassword.length < MIN_PASSWORD_LENGTH)
+      errs.password = `Heslo musí mít alespoň ${MIN_PASSWORD_LENGTH} znaků.`;
+    if (addPwPassword !== addPwConfirm) errs.confirm = "Hesla se neshodují";
+    if (Object.keys(errs).length > 0) { setAddPwErrors(errs); return; }
+    setAddPwErrors({});
+    setAddPwBusy(true);
+    try {
+      await linkPasswordToCurrentUser(addPwPassword);
+      setAddPwDone(true);
+    } catch (err) {
+      setAddPwError(mapFirebaseAuthError(err));
+    } finally {
+      setAddPwBusy(false);
+    }
+  };
 
   const selectedLanguage =
     LANGUAGE_OPTIONS.find((l) => l.value === settings.language) ?? LANGUAGE_OPTIONS[0];
@@ -206,6 +247,46 @@ export function Settings() {
           </SettingList>
         </Section>
 
+        {/* Security */}
+        {user && (
+          <Section title="Zabezpečení účtu" subtitle="Správa způsobů přihlášení.">
+            <SettingList>
+              {isGoogleOnly && (
+                <ActionRow
+                  icon={<KeyRound className="h-5 w-5" />}
+                  title="Přidat přihlášení e-mailem"
+                  description="Nastav heslo a přihlásíš se i bez Google."
+                  onClick={() => { setAddPwDone(false); setAddPwPassword(""); setAddPwConfirm(""); setAddPwError(null); setAddPwErrors({}); setAddPasswordOpen(true); }}
+                />
+              )}
+              {hasPassword && (
+                <div className="flex items-center gap-3 px-4 py-3 min-h-[56px]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-icon-well text-foreground">
+                    <KeyRound className="h-5 w-5" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">Přihlášení e-mailem</p>
+                    <p className="text-xs text-muted-foreground">Aktivní — máš nastavené heslo.</p>
+                  </div>
+                  <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+                </div>
+              )}
+              {providers.includes("google.com") && (
+                <div className="flex items-center gap-3 px-4 py-3 min-h-[56px]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-icon-well text-foreground">
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">Google</p>
+                    <p className="text-xs text-muted-foreground">Aktivní — {user.email}</p>
+                  </div>
+                  <CheckCircle className="h-5 w-5 text-primary shrink-0" />
+                </div>
+              )}
+            </SettingList>
+          </Section>
+        )}
+
         {/* Legal & about */}
         <Section title="O aplikaci">
           <SettingList>
@@ -303,6 +384,65 @@ export function Settings() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* Add password modal */}
+      <Modal
+        isOpen={addPasswordOpen}
+        onClose={() => setAddPasswordOpen(false)}
+        title="Přidat přihlášení e-mailem"
+      >
+        {addPwDone ? (
+          <div className="flex flex-col items-center gap-4 py-2 text-center">
+            <CheckCircle className="h-12 w-12 text-primary" />
+            <p className="font-medium">Heslo přidáno!</p>
+            <p className="text-sm text-muted-foreground">
+              Teď se můžeš přihlásit e-mailem i přes Google — vždy do stejného účtu.
+            </p>
+            <Button fullWidth onClick={() => setAddPasswordOpen(false)}>
+              Hotovo
+            </Button>
+          </div>
+        ) : (
+          <form onSubmit={(e) => void handleAddPassword(e)} className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Nastav heslo ke svému účtu ({user?.email}). Po přidání se budeš moci přihlásit e-mailem i Googlem.
+            </p>
+            {addPwError && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {addPwError}
+              </div>
+            )}
+            <Input
+              type="password"
+              label="Nové heslo"
+              placeholder="Zvolte heslo"
+              value={addPwPassword}
+              onChange={(e) => setAddPwPassword(e.target.value)}
+              error={addPwErrors.password}
+              disabled={addPwBusy}
+              autoComplete="new-password"
+            />
+            <Input
+              type="password"
+              label="Potvrzení hesla"
+              placeholder="Potvrďte heslo"
+              value={addPwConfirm}
+              onChange={(e) => setAddPwConfirm(e.target.value)}
+              error={addPwErrors.confirm}
+              disabled={addPwBusy}
+              autoComplete="new-password"
+            />
+            <div className="flex gap-2">
+              <Button variant="outline" fullWidth type="button" onClick={() => setAddPasswordOpen(false)}>
+                Zrušit
+              </Button>
+              <Button fullWidth type="submit" disabled={addPwBusy}>
+                {addPwBusy ? "Ukládám…" : "Přidat heslo"}
+              </Button>
+            </div>
+          </form>
+        )}
       </Modal>
 
       {/* Confirm clear all */}

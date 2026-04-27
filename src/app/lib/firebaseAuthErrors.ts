@@ -16,7 +16,13 @@ export function mapFirebaseAuthError(err: unknown): string {
       case "auth/invalid-credential":
         return "Špatný e-mail nebo heslo.";
       case "auth/email-already-in-use":
-        return "Účet s tímto e-mailem už existuje.";
+        return "Účet s tímto e-mailem už existuje. Zkuste se přihlásit nebo použijte Google.";
+      case "auth/account-exists-with-different-credential":
+        return "Tento e-mail je již přihlášen jiným způsobem (např. přes Google). Přihlaste se Googlem a v nastavení přidejte heslo.";
+      case "auth/provider-already-linked":
+        return "Tento způsob přihlášení je k účtu již přidán.";
+      case "auth/credential-already-in-use":
+        return "Tyto přihlašovací údaje jsou již použity v jiném účtu.";
       case "auth/weak-password":
         return "Heslo je příliš slabé. Použijte alespoň 8 znaků.";
       case "auth/operation-not-allowed":

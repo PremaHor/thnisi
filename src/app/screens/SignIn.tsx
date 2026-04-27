@@ -90,7 +90,8 @@ export function SignIn() {
       navigate("/");
     } catch (err) {
       console.error("Email sign-in error:", err);
-      setFormError(mapFirebaseAuthError(err));
+      const msg = mapFirebaseAuthError(err);
+      setFormError(msg);
     } finally {
       setBusy(false);
     }
@@ -105,8 +106,7 @@ export function SignIn() {
       </div>
       <div className="w-full max-w-sm rounded-[20px] border border-border bg-card p-5 shadow-[var(--shadow-elev-2)] sm:p-8">
         <div className="mb-6 text-center sm:mb-8">
-          <h1 className="mb-2">Vítej zpátky</h1>
-          <p className="text-muted-foreground">Přihlášení přes Firebase (e-mail nebo Google).</p>
+          <h1>Vítej zpátky</h1>
         </div>
 
         {formError && (

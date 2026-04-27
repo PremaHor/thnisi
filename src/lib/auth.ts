@@ -1,5 +1,7 @@
 import {
+  EmailAuthProvider,
   GoogleAuthProvider,
+  linkWithCredential,
   signInWithPopup,
   signOut,
   createUserWithEmailAndPassword,
@@ -74,3 +76,24 @@ export const logout = async () => {
 export const resetPassword = async (email: string) => {
   await sendPasswordResetEmail(auth, email);
 };
+
+/**
+ * Vrátí seznam provider ID přihlášeného uživatele.
+ * Např. ["google.com"] nebo ["google.com", "password"]
+ */
+export function getUserProviders(): string[] {
+  const user = auth.currentUser;
+  if (!user) return [];
+  return user.providerData.map((p) => p.providerId);
+}
+
+/**
+ * Připojí e-mail + heslo k aktuálně přihlášenému účtu (např. Google).
+ * Po zavolání se uživatel může přihlásit oběma způsoby do stejného profilu.
+ */
+export async function linkPasswordToCurrentUser(password: string): Promise<void> {
+  const user = auth.currentUser;
+  if (!user || !user.email) throw new Error("Nejsi přihlášen nebo nemáš e-mail v účtu.");
+  const credential = EmailAuthProvider.credential(user.email, password);
+  await linkWithCredential(user, credential);
+}
