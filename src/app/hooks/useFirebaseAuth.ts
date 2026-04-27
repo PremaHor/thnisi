@@ -22,24 +22,48 @@ export function useFirebaseAuth(): AuthState {
       setLoading(false);
       return;
     }
-    setLoading(true);
+
     const auth = getFirebaseAuth();
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (u) => {
-        if (u) {
-          try { await ensureUserDocument(u); } catch { /* ignore */ }
-        }
-        setUser(u);
-        setError(null);
-        setLoading(false);
-      },
-      (e) => {
-        setError(e);
-        setLoading(false);
+    let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
+
+    void (async () => {
+      // authStateReady() resolves once Firebase has read the persisted session
+      // from storage (IndexedDB/localStorage). Without this, onAuthStateChanged
+      // may fire with null first on iOS PWA before the real user is restored,
+      // causing ProtectedRoute to incorrectly redirect to sign-in.
+      try {
+        await auth.authStateReady();
+      } catch {
+        // Proceed even if authStateReady fails (older SDK fallback)
       }
-    );
-    return () => unsubscribe();
+
+      if (cancelled) return;
+
+      unsubscribe = onAuthStateChanged(
+        auth,
+        async (u) => {
+          if (cancelled) return;
+          if (u) {
+            try { await ensureUserDocument(u); } catch { /* ignore */ }
+          }
+          if (cancelled) return;
+          setUser(u);
+          setError(null);
+          setLoading(false);
+        },
+        (e) => {
+          if (cancelled) return;
+          setError(e);
+          setLoading(false);
+        }
+      );
+    })();
+
+    return () => {
+      cancelled = true;
+      unsubscribe?.();
+    };
   }, []);
 
   return { user, loading, error, configured, isAuthenticated: Boolean(user) };
