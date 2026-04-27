@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { AppLogo } from "../components/AppLogo";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
@@ -31,6 +31,10 @@ function GoogleGIcon({ className }: { className?: string }) {
 
 export function SignIn() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const redirectTarget = (location.state as { from?: string } | null)?.from ?? "/";
+  const wasRedirected = Boolean((location.state as { from?: string } | null)?.from);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -62,7 +66,7 @@ export function SignIn() {
     setBusy(true);
     try {
       await signInWithGoogle();
-      navigate("/");
+      navigate(redirectTarget, { replace: true });
     } catch (e) {
       console.error("Google sign-in error:", e);
       setFormError(mapFirebaseAuthError(e));
@@ -87,7 +91,7 @@ export function SignIn() {
     setBusy(true);
     try {
       await loginWithEmail(email.trim(), password);
-      navigate("/");
+      navigate(redirectTarget, { replace: true });
     } catch (err) {
       console.error("Email sign-in error:", err);
       const msg = mapFirebaseAuthError(err);
@@ -108,6 +112,12 @@ export function SignIn() {
         <div className="mb-6 text-center sm:mb-8">
           <h1>Vítej zpátky</h1>
         </div>
+
+        {wasRedirected && !formError && (
+          <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+            Vaše přihlášení vypršelo. Přihlaste se prosím znovu.
+          </div>
+        )}
 
         {formError && (
           <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

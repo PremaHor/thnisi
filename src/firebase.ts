@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, browserLocalPersistence, setPersistence } from "firebase/auth";
+import { initializeAuth, browserLocalPersistence } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -34,15 +34,14 @@ export function isFirebaseConfigured(): boolean {
 }
 
 export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
+
+// Use initializeAuth (instead of getAuth) so that persistence is set
+// synchronously at creation time — before any session read happens.
+// This avoids the race condition where getAuth + setPersistence could
+// cause onAuthStateChanged to fire null on iOS PWA before migration completes.
+export const auth = initializeAuth(app, {
+  persistence: browserLocalPersistence,
+});
+
 export const db = getFirestore(app);
 export const storage = getStorage(app);
-
-// Explicitly use localStorage for auth persistence.
-// On iOS PWA standalone mode, Firebase defaults to IndexedDB which can be
-// cleared by iOS between sessions. localStorage is more reliable on iOS.
-if (isFirebaseConfigured()) {
-  void setPersistence(auth, browserLocalPersistence).catch(() => {
-    // Ignore errors — persistence will fall back to the default
-  });
-}

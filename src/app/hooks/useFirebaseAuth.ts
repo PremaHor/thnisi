@@ -57,9 +57,9 @@ export function useFirebaseAuth(): AuthState {
           setError(null);
           setLoading(false);
         } else {
-          // Delay setting null by 600 ms — if the real user fires within this
+          // Delay setting null by 1200 ms — if the real user fires within this
           // window (iOS session restoration), the timer is cancelled above.
-          nullDebounceTimer = setTimeout(commitNull, 600);
+          nullDebounceTimer = setTimeout(commitNull, 1200);
         }
       },
       (e) => {
