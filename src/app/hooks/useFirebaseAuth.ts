@@ -39,9 +39,6 @@ export function useFirebaseAuth(): AuthState {
     const commitNull = () => {
       if (cancelled) return;
       nullDebounceTimer = null;
-      // #region agent log
-      fetch('http://127.0.0.1:7942/ingest/25be6b19-1e16-4c08-b1ae-27fa0e446bf5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e70cc9'},body:JSON.stringify({sessionId:'e70cc9',location:'useFirebaseAuth.ts:commitNull',message:'debounce expired – setting user null',data:{timestamp:Date.now()},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       setUser(null);
       setError(null);
       setLoading(false);
@@ -58,16 +55,9 @@ export function useFirebaseAuth(): AuthState {
           nullDebounceTimer = null;
         }
 
-        // #region agent log
-        fetch('http://127.0.0.1:7942/ingest/25be6b19-1e16-4c08-b1ae-27fa0e446bf5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e70cc9'},body:JSON.stringify({sessionId:'e70cc9',location:'useFirebaseAuth.ts:onAuthStateChanged',message:u?'user received':'null received',data:{uid:u?.uid??null,email:u?.email??null,timestamp:Date.now()},timestamp:Date.now(),hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-
         if (u) {
           try { await ensureUserDocument(u); } catch { /* ignore */ }
           if (cancelled) return;
-          // #region agent log
-          fetch('http://127.0.0.1:7942/ingest/25be6b19-1e16-4c08-b1ae-27fa0e446bf5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e70cc9'},body:JSON.stringify({sessionId:'e70cc9',location:'useFirebaseAuth.ts:afterEnsure',message:'setUser called',data:{uid:u.uid,cancelled},timestamp:Date.now(),hypothesisId:'C'})}).catch(()=>{});
-          // #endregion
           setUser(u);
           setError(null);
           setLoading(false);

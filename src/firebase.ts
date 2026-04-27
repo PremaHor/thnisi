@@ -53,9 +53,3 @@ export const auth = initializeAuth(app, {
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// #region agent log
-if (isFirebaseConfigured()) {
-  const lsKeys = Object.keys(localStorage).filter((k) => k.startsWith("firebase:"));
-  fetch('http://127.0.0.1:7942/ingest/25be6b19-1e16-4c08-b1ae-27fa0e446bf5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'e70cc9'},body:JSON.stringify({sessionId:'e70cc9',location:'firebase.ts:init',message:'auth initialized',data:{persistenceType:'[indexedDBLocalPersistence, browserLocalPersistence]',localStorageFirebaseKeys:lsKeys,hasSessionInLS:lsKeys.length>0},timestamp:Date.now(),runId:'post-fix',hypothesisId:'A'})}).catch(()=>{});
-}
-// #endregion
