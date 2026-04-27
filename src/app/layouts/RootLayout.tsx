@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Outlet, useLocation, Link } from "react-router";
 import { Home, Plus, MessageCircle, ShoppingBag, User } from "lucide-react";
-import { useFirebaseAuth } from "../hooks/useFirebaseAuth";
+import { useFirebase } from "../contexts/FirebaseContext";
 import { subscribePendingIncomingCount, subscribeOutgoingRequests, type TradeRequestStatus } from "../../lib/trades";
 
 function isNavActive(path: string, pathname: string): boolean {
@@ -82,7 +82,7 @@ function showAcceptedNotification(offerTitle: string) {
 
 /** Sleduje odchozí žádosti a upozorní při pending → declined nebo pending → accepted. */
 function useOutgoingRequestNotifications() {
-  const { user } = useFirebaseAuth();
+  const { user } = useFirebase();
   // Mapa requestId → předchozí status; null = ještě jsme neviděli první snapshot
   const prevStatuses = useRef<Map<string, TradeRequestStatus> | null>(null);
 
@@ -110,7 +110,7 @@ function useOutgoingRequestNotifications() {
 }
 
 function usePendingTradeCount(): number {
-  const { user } = useFirebaseAuth();
+  const { user } = useFirebase();
   const [count, setCount] = useState(0);
   const prevCount = useRef<number | null>(null);
 

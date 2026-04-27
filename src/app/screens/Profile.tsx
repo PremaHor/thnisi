@@ -11,7 +11,7 @@ import { getRatingSummaryForUser, type RatingSummary } from "../../lib/ratings";
 
 export function Profile() {
   const navigate = useNavigate();
-  const { user: authUser } = useFirebase();
+  const { user: authUser, loading: authLoading } = useFirebase();
   const [ownRating, setOwnRating] = useState<RatingSummary | null>(null);
   const [profile, setProfile] = useState({
     name: "",
@@ -26,6 +26,7 @@ export function Profile() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     if (!authUser?.uid) {
       setLoading(false);
       return;
@@ -60,7 +61,7 @@ export function Profile() {
         setLoading(false);
       }
     })();
-  }, [authUser]);
+  }, [authUser, authLoading]);
 
   return (
     <div className="app-screen">
